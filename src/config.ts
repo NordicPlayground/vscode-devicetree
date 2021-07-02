@@ -46,7 +46,6 @@ const settingsNamespace = 'devicetree';
  */
 interface ConfigEntries {
     modules: string[];
-    west: string | null;
     zephyr: string | null;
     ctxFile: string | null;
     defaultBoard: string | null;
