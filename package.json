@@ -252,7 +252,11 @@
         "test": "npm run compile && node ./node_modules/vscode/bin/test",
         "webpack": "webpack --mode development",
         "webpack-dev": "webpack --mode development --watch",
-        "test-compile": "tsc -p ./"
+        "test-compile": "tsc -p ./",
+        "lint": "node ./scripts/lint.js",
+        "lintfix": "node ./scripts/lint.js --fix",
+        "apply-copyright": "node ./scripts/copyright.js",
+        "updateBuildNumber": "node ./scripts/updateBuildNumber.js"
     },
     "devDependencies": {
         "@types/find": "^0.2.1",
@@ -267,6 +271,7 @@
         "eslint-config-airbnb-base": "^14.2.0",
         "eslint-plugin-import": "^2.22.0",
         "mocha": "^6.1.4",
+        "prettier": "^2.3.2",
         "ts-loader": "^8.0.0",
         "typescript": "^3.7.2",
         "vscode-test": "1.4.0",
