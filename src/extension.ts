@@ -1616,16 +1616,21 @@ class DTSEngine implements
 export async function activate(
     context: vscode.ExtensionContext
 ): Promise<API> {
-    await zephyr.activate(context);
-    await typeLoader.activate(context);
+    const api = new API();
 
-    const engine = new DTSEngine();
-    await engine.loadCtxs();
-    await dts.parser.activate(context);
-    engine.activate(context);
-    treeView.activate(context);
+    // deferred activation in case activationCfg is set by peer extension synchronously
+    setTimeout(async () => {
+        await zephyr.activate(api.activationCfg.topdir);
+        await typeLoader.activate(context);
 
-    return new API();
+        const engine = new DTSEngine();
+        await engine.loadCtxs();
+        await dts.parser.activate(context);
+        engine.activate(context);
+        treeView.activate(context);
+    }, 1);
+
+    return api;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
