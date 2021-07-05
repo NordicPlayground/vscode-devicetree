@@ -65,8 +65,11 @@ export class API implements DeviceTree {
     };
     version = 1;
 
+    /**
+     * Configuration provided by peer extension for the activation
+     */
     public activationCfg: {
-        [key: string]: string | null;
+        topdir: string | null;
     };
 
     constructor() {
