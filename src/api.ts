@@ -65,6 +65,13 @@ export class API implements DeviceTree {
     };
     version = 1;
 
+    /**
+     * Configuration provided by peer extension for the activation
+     */
+    public activationCfg: {
+        topdir: string | null;
+    };
+
     constructor() {
         dts.parser.onStable(ctx => {
             this._changeEmitter.fire(packCtx(ctx));
@@ -88,7 +95,7 @@ export class API implements DeviceTree {
         return Promise.reject();
     }
 
-    setZephyrBase(uri: vscode.Uri) {
+    async setZephyrBase(uri: vscode.Uri): Promise<void> {
         return zephyr.setZephyrBase(uri);
     }
 
