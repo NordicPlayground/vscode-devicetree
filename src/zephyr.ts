@@ -27,7 +27,7 @@ export type BoardInfo = {
 export type Board = { name: string; uri: vscode.Uri; arch?: string; info?: BoardInfo | { [name: string]: any } };
 export let zephyrRoot: string;
 let boards: Board[];
-export let modules: vscode.Uri[];
+export let modules = new Array<vscode.Uri>();
 
 async function getCMakePackages(): Promise<vscode.Uri[]> {
     const packageToZephyrURI = (entry: string) => {
