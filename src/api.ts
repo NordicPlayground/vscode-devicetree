@@ -65,13 +65,6 @@ export class API implements DeviceTree {
     };
     version = 1;
 
-    /**
-     * Configuration provided by peer extension for the activation
-     */
-    public activationCfg: {
-        topdir: string | null;
-    };
-
     constructor() {
         dts.parser.onStable(ctx => {
             this._changeEmitter.fire(packCtx(ctx));

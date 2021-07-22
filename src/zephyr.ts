@@ -255,11 +255,8 @@ export async function selectBoard(prompt = 'Set board'): Promise<Board> {
         .then(board => board['board']);
 }
 
-export function activate(topdir?: string) {
+export function activate() {
     config.onChange('modules', () => (modules = resolveModules()));
-    if (topdir) {
-        return setZephyrBase(vscode.Uri.joinPath(vscode.Uri.file(topdir), 'zephyr'));
-    }
     config.onChange('zephyr', findZephyr);
     return findZephyr();
 }

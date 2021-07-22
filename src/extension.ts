@@ -1618,17 +1618,15 @@ export async function activate(
 ): Promise<API> {
     const api = new API();
 
-    // deferred activation in case activationCfg is set by peer extension synchronously
-    setTimeout(async () => {
-        await zephyr.activate(api.activationCfg?.topdir);
-        await typeLoader.activate(context);
+    await zephyr.activate();
+    await typeLoader.activate(context);
 
-        const engine = new DTSEngine();
-        await engine.loadCtxs();
-        await dts.parser.activate(context);
-        engine.activate(context);
-        treeView.activate(context);
-    }, 1);
+    const engine = new DTSEngine();
+    await engine.loadCtxs();
+    await dts.parser.activate(context);
+    engine.activate(context);
+    treeView.activate(context);
+  
 
     return api;
 }
