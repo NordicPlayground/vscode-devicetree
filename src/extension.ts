@@ -1620,7 +1620,7 @@ export async function activate(
 
     // deferred activation in case activationCfg is set by peer extension synchronously
     setTimeout(async () => {
-        await zephyr.activate(api.activationCfg.topdir);
+        await zephyr.activate(api.activationCfg?.topdir);
         await typeLoader.activate(context);
 
         const engine = new DTSEngine();
