@@ -69,13 +69,17 @@ export class API implements DeviceTree {
      * Configuration provided by peer extension for the activation
      */
     public activationCfg: {
-        topdir: string | null;
+        zephyrBase?: string;
     };
 
     constructor() {
         dts.parser.onStable(ctx => {
             this._changeEmitter.fire(packCtx(ctx));
         });
+
+        this.activationCfg = {
+            zephyrBase: undefined
+        };
     }
 
     async addContext(boardUri: vscode.Uri, overlays: vscode.Uri[] = [], name?: string): Promise<Context> {
