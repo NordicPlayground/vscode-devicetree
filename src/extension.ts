@@ -1619,7 +1619,7 @@ export async function activate(
     const api = new API();
 
     // deferred activation in case activationCfg is set by peer extension synchronously
-    setTimeout(async () => {        
+    setTimeout(async () => {
         await zephyr.activate(api.activationCfg?.zephyrBase);
         await typeLoader.activate(context);
 
@@ -1629,7 +1629,7 @@ export async function activate(
         engine.activate(context);
         treeView.activate(context);
     }, 1);
-  
+
     return api;
 }
 
