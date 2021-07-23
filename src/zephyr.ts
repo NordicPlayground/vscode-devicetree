@@ -255,8 +255,11 @@ export async function selectBoard(prompt = 'Set board'): Promise<Board> {
         .then(board => board['board']);
 }
 
-export function activate() {
+export function activate(zephyrBase?: string) {
     config.onChange('modules', () => (modules = resolveModules()));
+    if (zephyrBase) {
+        return setZephyrBase(vscode.Uri.file(zephyrBase));
+    }
     config.onChange('zephyr', findZephyr);
     return findZephyr();
 }
