@@ -1613,23 +1613,29 @@ class DTSEngine implements
     }
 }
 
+let api: API;
+let extensionContext: vscode.ExtensionContext;
+
+export async function secondaryActivate(): Promise<void> {
+    await zephyr.activate(api.activationCfg?.zephyrBase);
+    await typeLoader.activate(extensionContext);
+
+    const engine = new DTSEngine();
+    await engine.loadCtxs();
+    await dts.parser.activate(extensionContext);
+    engine.activate(extensionContext);
+    treeView.activate(extensionContext);
+}
+
 export async function activate(
     context: vscode.ExtensionContext
 ): Promise<API> {
-    const api = new API();
-
-    // deferred activation in case activationCfg is set by peer extension synchronously
-    setTimeout(async () => {
-        await zephyr.activate(api.activationCfg?.zephyrBase);
-        await typeLoader.activate(context);
-
-        const engine = new DTSEngine();
-        await engine.loadCtxs();
-        await dts.parser.activate(context);
-        engine.activate(context);
-        treeView.activate(context);
-    }, 1);
-
+    api = new API();
+    extensionContext = context;
+    if (!vscode.extensions.getExtension('nordic-semiconductor.nrf-connect')) {
+        await secondaryActivate();
+    }
+    // waiting for nrf-connect to activate devicetree with activation configuration
     return api;
 }
 
