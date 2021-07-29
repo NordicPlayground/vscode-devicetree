@@ -8,7 +8,7 @@ import * as vscode from 'vscode';
 import * as dts from './dts';
 import { typeLoader, PropertyType, NodeType } from './types';
 import * as zephyr from './zephyr';
-import {lint, LintCtx} from './lint';
+import { lint, LintCtx } from './lint';
 import * as path from 'path';
 import { DiagnosticsSet } from './diags';
 import { existsSync, readFile, writeFile, writeFileSync } from 'fs';
@@ -98,16 +98,25 @@ function toCIdentifier(name: string) {
 
 class CSupport implements vscode.CompletionItemProvider {
     activate(ctx: vscode.ExtensionContext) {
-        ctx.subscriptions.push(vscode.languages.registerCompletionItemProvider({ language: 'c', scheme: 'file' }, this));
+        ctx.subscriptions.push(
+            vscode.languages.registerCompletionItemProvider({ language: 'c', scheme: 'file' }, this)
+        );
     }
 
-    provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext): vscode.ProviderResult<vscode.CompletionItem[]> {
+    provideCompletionItems(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken,
+        context: vscode.CompletionContext
+    ): vscode.ProviderResult<vscode.CompletionItem[]> {
         const ctx = dts.parser.lastCtx;
         if (!ctx) {
             return;
         }
 
-        const before = document.getText(new vscode.Range(position.line, 0, position.line, position.character));
+        const before = document.getText(
+            new vscode.Range(position.line, 0, position.line, position.character)
+        );
         // Early exit:
         if (!before.includes('DT_')) {
             return;
@@ -118,26 +127,53 @@ class CSupport implements vscode.CompletionItemProvider {
             return;
         }
 
-        let suggestions: {text: string, node?: dts.Node, prop?: dts.Property}[];
-        switch(macro[1]) {
+        let suggestions: { text: string; node?: dts.Node; prop?: dts.Property }[];
+        switch (macro[1]) {
             case 'ALIAS':
-                suggestions = ctx.node('/aliases/')?.properties().map(prop => ({ text: toCIdentifier(prop.name), node: ctx.node(prop.pHandle?.toString(true)) }));
+                suggestions = ctx
+                    .node('/aliases/')
+                    ?.properties()
+                    .map((prop) => ({
+                        text: toCIdentifier(prop.name),
+                        node: ctx.node(prop.pHandle?.toString(true)),
+                    }));
                 break;
             case 'NODELABEL':
-                suggestions = Object.values(ctx.nodes).flatMap(node => node.labels().map(l => (<typeof suggestions[0]>{ text: toCIdentifier(l), node })));
+                suggestions = Object.values(ctx.nodes).flatMap((node) =>
+                    node
+                        .labels()
+                        .map((l) => <typeof suggestions[0]>{ text: toCIdentifier(l), node })
+                );
                 break;
             case 'PATH':
-                suggestions = Object.values(ctx.nodes).map(node => ({ text: toCIdentifier(node.path.slice(1, node.path.length - 1)).replace(/\//g, ', '), node }));
+                suggestions = Object.values(ctx.nodes).map((node) => ({
+                    text: toCIdentifier(node.path.slice(1, node.path.length - 1)).replace(
+                        /\//g,
+                        ', '
+                    ),
+                    node,
+                }));
                 break;
             case 'CHOSEN':
-                suggestions = ctx.node('/chosen/')?.properties().map(prop => ({ text: toCIdentifier(prop.name), node: ctx.node(prop.pHandle?.toString(true)) }));
+                suggestions = ctx
+                    .node('/chosen/')
+                    ?.properties()
+                    .map((prop) => ({
+                        text: toCIdentifier(prop.name),
+                        node: ctx.node(prop.pHandle?.toString(true)),
+                    }));
                 break;
             default:
                 return;
         }
 
-        return suggestions.map(suggestion => {
-            const item = new vscode.CompletionItem(suggestion.text, suggestion.node ? vscode.CompletionItemKind.Class : vscode.CompletionItemKind.Property);
+        return suggestions.map((suggestion) => {
+            const item = new vscode.CompletionItem(
+                suggestion.text,
+                suggestion.node
+                    ? vscode.CompletionItemKind.Class
+                    : vscode.CompletionItemKind.Property
+            );
             item.sortText = '  ' + item.label;
 
             if (suggestion.node) {
@@ -145,7 +181,9 @@ class CSupport implements vscode.CompletionItemProvider {
                 item.documentation = suggestion.node.type?.description;
             } else if (suggestion.prop) {
                 item.detail = suggestion.prop.name;
-                item.documentation = suggestion.prop.node.type?.property(suggestion.prop.name)?.description;
+                item.documentation = suggestion.prop.node.type?.property(
+                    suggestion.prop.name
+                )?.description;
             }
 
             if (item.documentation) {
@@ -159,19 +197,21 @@ class CSupport implements vscode.CompletionItemProvider {
     }
 }
 
-type StoredCtx = { name: string, boardFile: string, overlays: string[], board: zephyr.Board };
+type StoredCtx = { name: string; boardFile: string; overlays: string[]; board: zephyr.Board };
 
-class DTSEngine implements
-    vscode.DocumentSymbolProvider,
-    vscode.WorkspaceSymbolProvider,
-    vscode.DefinitionProvider,
-    vscode.HoverProvider,
-    vscode.CompletionItemProvider,
-    vscode.SignatureHelpProvider,
-    vscode.DocumentRangeFormattingEditProvider,
-    vscode.DocumentLinkProvider,
-    vscode.ReferenceProvider,
-    vscode.TypeDefinitionProvider {
+class DTSEngine
+    implements
+        vscode.DocumentSymbolProvider,
+        vscode.WorkspaceSymbolProvider,
+        vscode.DefinitionProvider,
+        vscode.HoverProvider,
+        vscode.CompletionItemProvider,
+        vscode.SignatureHelpProvider,
+        vscode.DocumentRangeFormattingEditProvider,
+        vscode.DocumentLinkProvider,
+        vscode.ReferenceProvider,
+        vscode.TypeDefinitionProvider
+{
     diags: vscode.DiagnosticCollection;
     diagSet?: DiagnosticsSet;
     prevDiagUris: vscode.Uri[] = [];
@@ -181,13 +221,13 @@ class DTSEngine implements
 
     constructor() {
         this.diags = vscode.languages.createDiagnosticCollection('DeviceTree');
-        dts.parser.onChange(ctx => {
+        dts.parser.onChange((ctx) => {
             const diags = ctx.getDiags();
             this.setDiags(diags);
         });
 
-        dts.parser.onStable(ctx => {
-            const lintCtx: LintCtx =  {
+        dts.parser.onStable((ctx) => {
+            const lintCtx: LintCtx = {
                 diags: new DiagnosticsSet(),
                 types: typeLoader,
                 ctx,
@@ -216,11 +256,22 @@ class DTSEngine implements
     }
 
     /** Returns all pHandle references to the node under cursor.  */
-    async provideReferences(document: vscode.TextDocument, position: vscode.Position, context: vscode.ReferenceContext, token: vscode.CancellationToken): Promise<vscode.Location[]> {
-        if (this.compiledDocProvider.is(document.uri) && document.getWordRangeAtPosition(position)) {
+    async provideReferences(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        context: vscode.ReferenceContext,
+        token: vscode.CancellationToken
+    ): Promise<vscode.Location[]> {
+        if (
+            this.compiledDocProvider.is(document.uri) &&
+            document.getWordRangeAtPosition(position)
+        ) {
             const node = await this.compiledDocProvider.getEntity(position);
             if (node instanceof dts.Node) {
-                return dts.parser.ctx(vscode.Uri.file(this.compiledDocProvider.currUri.query))?.getReferences(node).map(r => r.loc);
+                return dts.parser
+                    .ctx(vscode.Uri.file(this.compiledDocProvider.currUri.query))
+                    ?.getReferences(node)
+                    .map((r) => r.loc);
             }
 
             return;
@@ -238,23 +289,34 @@ class DTSEngine implements
             if (cell instanceof dts.PHandle) {
                 const node = ctx.node(cell.val);
                 if (node) {
-                    return ctx.getReferences(node).map(r => r.loc);
+                    return ctx.getReferences(node).map((r) => r.loc);
                 }
             }
         }
 
         const entry = ctx.getEntryAt(position, document.uri);
-        if (entry && entry.nameLoc.uri.toString() === document.uri.toString() && entry.nameLoc.range.contains(position)) {
-            return ctx.getReferences(entry.node).map(r => r.loc);
+        if (
+            entry &&
+            entry.nameLoc.uri.toString() === document.uri.toString() &&
+            entry.nameLoc.range.contains(position)
+        ) {
+            return ctx.getReferences(entry.node).map((r) => r.loc);
         }
     }
 
-    provideCodeActions(document: vscode.TextDocument, range: vscode.Range | vscode.Selection, context: vscode.CodeActionContext, token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeAction[]> {
+    provideCodeActions(
+        document: vscode.TextDocument,
+        range: vscode.Range | vscode.Selection,
+        context: vscode.CodeActionContext,
+        token: vscode.CancellationToken
+    ): vscode.ProviderResult<vscode.CodeAction[]> {
         if (!this.diagSet) {
             return [];
         }
 
-        return this.diagSet.getActions(document.uri, range).filter(action => !context.only || context.only.contains(action.kind));
+        return this.diagSet
+            .getActions(document.uri, range)
+            .filter((action) => !context.only || context.only.contains(action.kind));
     }
 
     async loadCtxs() {
@@ -263,19 +325,28 @@ class DTSEngine implements
             return;
         }
 
-        const text = await new Promise<string>(resolve => readFile(file, 'utf-8', (_, data) => resolve(data))) ?? '';
+        const text =
+            (await new Promise<string>((resolve) =>
+                readFile(file, 'utf-8', (_, data) => resolve(data))
+            )) ?? '';
         const json: StoredCtx[] = JSON.parse(text) || [];
-        const ctxNames = [...dts.parser.contexts.map(ctx => ctx.name)];
+        const ctxNames = [...dts.parser.contexts.map((ctx) => ctx.name)];
 
-        await Promise.all(json.map(ctx => {
-            if (!ctxNames.includes(ctx.name)) {
-                ctxNames.push(ctx.name); // don't load duplicates
-                return dts.parser.addContext(ctx.board ?? vscode.Uri.file(ctx.boardFile), ctx.overlays.map(o => vscode.Uri.file(o)), ctx.name);
-            }
-        }));
+        await Promise.all(
+            json.map((ctx) => {
+                if (!ctxNames.includes(ctx.name)) {
+                    ctxNames.push(ctx.name); // don't load duplicates
+                    return dts.parser.addContext(
+                        ctx.board ?? vscode.Uri.file(ctx.boardFile),
+                        ctx.overlays.map((o) => vscode.Uri.file(o)),
+                        ctx.name
+                    );
+                }
+            })
+        );
     }
 
-    async saveCtxs(createFile=false) {
+    async saveCtxs(createFile = false) {
         await dts.parser.stable();
         const file = config.get('ctxFile');
 
@@ -285,7 +356,10 @@ class DTSEngine implements
         if (file && existsSync(file)) {
             uri = vscode.Uri.file(file);
         } else if (createFile) {
-            uri = (await vscode.window.showSaveDialog({ filters: { 'json': ['json'] }, defaultUri: vscode.workspace.workspaceFolders?.[0]?.uri }));
+            uri = await vscode.window.showSaveDialog({
+                filters: { json: ['json'] },
+                defaultUri: vscode.workspace.workspaceFolders?.[0]?.uri,
+            });
             if (!uri) {
                 return;
             }
@@ -295,14 +369,18 @@ class DTSEngine implements
             return;
         }
 
-        const json = dts.parser.contexts.map(ctx => ({name: ctx.name, boardFile: ctx.boardFile.uri.fsPath, overlays: ctx.overlays.map(o => o.uri.fsPath), board: ctx.board}));
-        writeFile(uri.fsPath, JSON.stringify(json, null, '\t'), err => {
+        const json = dts.parser.contexts.map((ctx) => ({
+            name: ctx.name,
+            boardFile: ctx.boardFile.uri.fsPath,
+            overlays: ctx.overlays.map((o) => o.uri.fsPath),
+            board: ctx.board,
+        }));
+        writeFile(uri.fsPath, JSON.stringify(json, null, '\t'), (err) => {
             if (err) {
                 vscode.window.showErrorMessage('Failed storing config: ' + err);
             } else {
                 vscode.commands.executeCommand('setContext', 'devicetree:dirtyConfig', false);
             }
-
         });
     }
 
@@ -313,7 +391,7 @@ class DTSEngine implements
             vscode.commands.executeCommand('setContext', 'devicetree:ctx.hasOverlay', true);
         }
 
-        vscode.window.onDidChangeActiveTextEditor(async editor => {
+        vscode.window.onDidChangeActiveTextEditor(async (editor) => {
             if (editor?.document?.languageId !== 'dts') {
                 return;
             }
@@ -325,25 +403,46 @@ class DTSEngine implements
                 return;
             }
 
-            vscode.commands.executeCommand('setContext', 'devicetree:ctx.hasOverlay', ctx.overlays.length > 0);
+            vscode.commands.executeCommand(
+                'setContext',
+                'devicetree:ctx.hasOverlay',
+                ctx.overlays.length > 0
+            );
         });
 
         const realDTSFiles = <vscode.DocumentFilter>{ language: 'dts', scheme: 'file' };
-        const allDTSFiles = [realDTSFiles, <vscode.DocumentFilter>{ language: 'dts', scheme: 'devicetree' }];
+        const allDTSFiles = [
+            realDTSFiles,
+            <vscode.DocumentFilter>{ language: 'dts', scheme: 'devicetree' },
+        ];
 
         let disposable = vscode.languages.registerDocumentSymbolProvider(allDTSFiles, this);
         ctx.subscriptions.push(disposable);
         disposable = vscode.languages.registerWorkspaceSymbolProvider(this);
         ctx.subscriptions.push(disposable);
-        disposable = vscode.languages.registerDefinitionProvider([...allDTSFiles, <vscode.DocumentFilter>{ language: 'yaml', scheme: 'file' }], this);
+        disposable = vscode.languages.registerDefinitionProvider(
+            [...allDTSFiles, <vscode.DocumentFilter>{ language: 'yaml', scheme: 'file' }],
+            this
+        );
         ctx.subscriptions.push(disposable);
         disposable = vscode.languages.registerHoverProvider(allDTSFiles, this);
         ctx.subscriptions.push(disposable);
-        disposable = vscode.languages.registerCompletionItemProvider(realDTSFiles, this, '&', '#', '<', '"', '\t');
+        disposable = vscode.languages.registerCompletionItemProvider(
+            realDTSFiles,
+            this,
+            '&',
+            '#',
+            '<',
+            '"',
+            '\t'
+        );
         ctx.subscriptions.push(disposable);
         disposable = vscode.languages.registerSignatureHelpProvider(realDTSFiles, this, '<', ' ');
         ctx.subscriptions.push(disposable);
-        disposable = vscode.languages.registerDocumentRangeFormattingEditProvider(realDTSFiles, this);
+        disposable = vscode.languages.registerDocumentRangeFormattingEditProvider(
+            realDTSFiles,
+            this
+        );
         ctx.subscriptions.push(disposable);
         disposable = vscode.languages.registerDocumentLinkProvider(realDTSFiles, this);
         ctx.subscriptions.push(disposable);
@@ -357,15 +456,22 @@ class DTSEngine implements
         this.compiledDocProvider.activate(ctx);
 
         vscode.commands.registerCommand('devicetree.newApp', async () => {
-            const folder = await vscode.window.showOpenDialog({
-                canSelectFiles: false,
-                canSelectFolders: true,
-                canSelectMany: false,
-                openLabel: 'Select folder',
-                defaultUri: vscode.window.activeTextEditor?.document ?
-                    vscode.Uri.file(path.dirname(vscode.window.activeTextEditor?.document?.uri.fsPath)) :
-                    vscode.workspace.workspaceFolders?.[0].uri,
-            }).then(uris => uris?.[0].fsPath, () => undefined);
+            const folder = await vscode.window
+                .showOpenDialog({
+                    canSelectFiles: false,
+                    canSelectFolders: true,
+                    canSelectMany: false,
+                    openLabel: 'Select folder',
+                    defaultUri: vscode.window.activeTextEditor?.document
+                        ? vscode.Uri.file(
+                              path.dirname(vscode.window.activeTextEditor?.document?.uri.fsPath)
+                          )
+                        : vscode.workspace.workspaceFolders?.[0].uri,
+                })
+                .then(
+                    (uris) => uris?.[0].fsPath,
+                    () => undefined
+                );
 
             if (!folder) {
                 return;
@@ -386,22 +492,31 @@ class DTSEngine implements
         vscode.commands.registerCommand('devicetree.save', () => this.saveCtxs(true));
 
         vscode.commands.registerCommand('devicetree.ctx.addShield', () => {
-            if (dts.parser.currCtx && vscode.window.activeTextEditor?.document.languageId === 'dts') {
+            if (
+                dts.parser.currCtx &&
+                vscode.window.activeTextEditor?.document.languageId === 'dts'
+            ) {
                 const options = <vscode.OpenDialogOptions>{
                     canSelectFiles: true,
                     openLabel: 'Add shield file',
                     canSelectMany: true,
-                    defaultUri: vscode.Uri.file(path.resolve(zephyr.zephyrRoot, 'boards', 'shields')),
-                    filters: { 'DeviceTree': ['dts', 'dtsi', 'overlay'] },
+                    defaultUri: vscode.Uri.file(
+                        path.resolve(zephyr.zephyrRoot, 'boards', 'shields')
+                    ),
+                    filters: { DeviceTree: ['dts', 'dtsi', 'overlay'] },
                 };
-                vscode.window.showOpenDialog(options).then(uris => {
+                vscode.window.showOpenDialog(options).then((uris) => {
                     if (uris) {
                         dts.parser.insertOverlays(...uris).then(() => {
                             this.saveCtxs();
                             if (uris.length === 1) {
-                                vscode.window.showInformationMessage(`Added shield overlay ${path.basename(uris[0].fsPath)}.`);
+                                vscode.window.showInformationMessage(
+                                    `Added shield overlay ${path.basename(uris[0].fsPath)}.`
+                                );
                             } else {
-                                vscode.window.showInformationMessage(`Added ${uris.length} shield overlays.`);
+                                vscode.window.showInformationMessage(
+                                    `Added ${uris.length} shield overlays.`
+                                );
                             }
                         });
                     }
@@ -415,13 +530,15 @@ class DTSEngine implements
                 return;
             }
 
-            vscode.window.showInputBox({ prompt: 'New DeviceTree context name', value: ctx.name }).then(value => {
-                if (value) {
-                    ctx._name = value;
-                    treeView.update();
-                    this.saveCtxs();
-                }
-            });
+            vscode.window
+                .showInputBox({ prompt: 'New DeviceTree context name', value: ctx.name })
+                .then((value) => {
+                    if (value) {
+                        ctx._name = value;
+                        treeView.update();
+                        this.saveCtxs();
+                    }
+                });
         });
 
         vscode.commands.registerCommand('devicetree.ctx.delete', (ctx?: dts.DTSCtx) => {
@@ -436,11 +553,17 @@ class DTSEngine implements
 
             // Only prompt if this context actually took some effort
             if (ctx.overlays.length > 1 || ctx._name) {
-                vscode.window.showWarningMessage(`Delete devicetree context "${ctx.name}"?`, {modal: true}, 'Delete').then(button => {
-                    if (button === 'Delete') {
-                        deleteCtx();
-                    }
-                });
+                vscode.window
+                    .showWarningMessage(
+                        `Delete devicetree context "${ctx.name}"?`,
+                        { modal: true },
+                        'Delete'
+                    )
+                    .then((button) => {
+                        if (button === 'Delete') {
+                            deleteCtx();
+                        }
+                    });
             } else {
                 deleteCtx();
             }
@@ -452,7 +575,7 @@ class DTSEngine implements
                 return;
             }
 
-            zephyr.selectBoard().then(board => {
+            zephyr.selectBoard().then((board) => {
                 if (board) {
                     dts.parser.setBoard(board, ctx).then(() => {
                         this.saveCtxs();
@@ -475,12 +598,18 @@ class DTSEngine implements
                     return `DT_NODELABEL(${toCIdentifier(labels[0])})`;
                 }
 
-                const alias = ctx.node('/alias/')?.properties().find(p => p.pHandle?.is(node));
+                const alias = ctx
+                    .node('/alias/')
+                    ?.properties()
+                    .find((p) => p.pHandle?.is(node));
                 if (alias) {
                     return `DT_ALIAS(${toCIdentifier(alias.pHandle.val)})`;
                 }
 
-                const chosen = ctx.node('/chosen/')?.properties().find(p => p.pHandle?.is(node));
+                const chosen = ctx
+                    .node('/chosen/')
+                    ?.properties()
+                    .find((p) => p.pHandle?.is(node));
                 if (chosen) {
                     return `DT_CHOSEN(${toCIdentifier(alias.pHandle.val)})`;
                 }
@@ -490,7 +619,9 @@ class DTSEngine implements
 
                     // better to do DT_PATH(a, b, c) than DT_CHILD(DT_CHILD(a, b), c)
                     if (!parent.startsWith('DT_NODELABEL(')) {
-                        return `DT_PATH(${toCIdentifier(node.path.slice(1, node.path.length - 1).replace(/\//g, ', '))})`;
+                        return `DT_PATH(${toCIdentifier(
+                            node.path.slice(1, node.path.length - 1).replace(/\//g, ', ')
+                        )})`;
                     }
 
                     return `DT_CHILD(${parent}, ${toCIdentifier(node.fullName)})`;
@@ -521,7 +652,9 @@ class DTSEngine implements
                     const cell = val.cellAt(selection.start, uri);
                     if (cell instanceof dts.PHandle) {
                         if (prop.value.length > 1) {
-                            return `DT_PHANDLE_BY_IDX(${nodeMacro(prop.node)}, ${toCIdentifier(prop.name)}, ${prop.value.indexOf(val)})`;
+                            return `DT_PHANDLE_BY_IDX(${nodeMacro(prop.node)}, ${toCIdentifier(
+                                prop.name
+                            )}, ${prop.value.indexOf(val)})`;
                         }
 
                         return `DT_PHANDLE(${nodeMacro(prop.node)}, ${toCIdentifier(prop.name)})`;
@@ -540,7 +673,9 @@ class DTSEngine implements
                                 }
 
                                 // Name is either size or addr
-                                return `DT_REG_${name.toUpperCase()}_BY_IDX(${nodeMacro(prop.node)}, ${valIdx})`;
+                                return `DT_REG_${name.toUpperCase()}_BY_IDX(${nodeMacro(
+                                    prop.node
+                                )}, ${valIdx})`;
                             }
                         }
                     }
@@ -581,7 +716,11 @@ class DTSEngine implements
             }
 
             if (macro) {
-                vscode.env.clipboard.writeText(macro).then(() => vscode.window.setStatusBarMessage(`Copied "${macro}" to clipboard`, 3000));
+                vscode.env.clipboard
+                    .writeText(macro)
+                    .then(() =>
+                        vscode.window.setStatusBarMessage(`Copied "${macro}" to clipboard`, 3000)
+                    );
             }
         });
 
@@ -605,7 +744,7 @@ class DTSEngine implements
                 return; // already in this file
             }
 
-            const editNode = async (node: dts.Node, insertText='') => {
+            const editNode = async (node: dts.Node, insertText = '') => {
                 const edit = new vscode.WorkspaceEdit();
 
                 let text = insertText;
@@ -614,7 +753,11 @@ class DTSEngine implements
                 let charOffset = insertText.length;
                 while (it) {
                     const shortName = (it.labels().length && it.refName) || (!it.parent && '/');
-                    text = (shortName || it.fullName) + ' {\n\t' + text.split('\n').join('\n\t') + '\n};';
+                    text =
+                        (shortName || it.fullName) +
+                        ' {\n\t' +
+                        text.split('\n').join('\n\t') +
+                        '\n};';
                     lineOffset += 1;
                     charOffset += 1;
 
@@ -629,9 +772,15 @@ class DTSEngine implements
                 edit.insert(doc.uri, insert, '\n' + text + '\n');
 
                 vscode.workspace.applyEdit(edit);
-                const e = vscode.window.visibleTextEditors.find(e => e.document?.uri.toString() === doc.uri.toString()) ?? await vscode.window.showTextDocument(doc);
+                const e =
+                    vscode.window.visibleTextEditors.find(
+                        (e) => e.document?.uri.toString() === doc.uri.toString()
+                    ) ?? (await vscode.window.showTextDocument(doc));
                 if (e) {
-                    e.revealRange(new vscode.Range(insert, insert), vscode.TextEditorRevealType.Default);
+                    e.revealRange(
+                        new vscode.Range(insert, insert),
+                        vscode.TextEditorRevealType.Default
+                    );
                     const cursor = new vscode.Position(insert.line + lineOffset, charOffset);
                     e.selection = new vscode.Selection(cursor, cursor);
                 }
@@ -678,24 +827,37 @@ class DTSEngine implements
     }
 
     private setDiags(diags: DiagnosticsSet) {
-        this.prevDiagUris.filter(uri => !diags.all.find(set => uri.toString() === set.uri.toString())).forEach(uri => this.diags.set(uri, []));
-        diags.all.forEach(d => this.diags.set(d.uri, d.diags));
-        this.prevDiagUris = diags.all.map(set => set.uri);
+        this.prevDiagUris
+            .filter((uri) => !diags.all.find((set) => uri.toString() === set.uri.toString()))
+            .forEach((uri) => this.diags.set(uri, []));
+        diags.all.forEach((d) => this.diags.set(d.uri, d.diags));
+        this.prevDiagUris = diags.all.map((set) => set.uri);
         this.diagSet = diags;
     }
 
     addMissing(entry: dts.NodeEntry, propType: PropertyType) {
-        if (!vscode.window.activeTextEditor || vscode.window.activeTextEditor.document.uri.fsPath !== entry.loc.uri.fsPath) {
+        if (
+            !vscode.window.activeTextEditor ||
+            vscode.window.activeTextEditor.document.uri.fsPath !== entry.loc.uri.fsPath
+        ) {
             return;
         }
-        const indent = vscode.window.activeTextEditor.options.insertSpaces ? ' '.repeat(vscode.window.activeTextEditor.options.tabSize as number) : '\t';
+        const indent = vscode.window.activeTextEditor.options.insertSpaces
+            ? ' '.repeat(vscode.window.activeTextEditor.options.tabSize as number)
+            : '\t';
         const line = entry.loc.range.end.line;
         const snippet = new vscode.SnippetString(`\n${indent}${propType.name} = `);
         appendPropSnippet(propType, snippet, entry.node);
-        vscode.window.activeTextEditor.insertSnippet(snippet, new vscode.Position(line - 1, 99999999));
+        vscode.window.activeTextEditor.insertSnippet(
+            snippet,
+            new vscode.Position(line - 1, 99999999)
+        );
     }
 
-    provideDocumentSymbols(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.SymbolInformation[]> {
+    provideDocumentSymbols(
+        document: vscode.TextDocument,
+        token: vscode.CancellationToken
+    ): vscode.ProviderResult<vscode.SymbolInformation[]> {
         const propSymbolKind = (p: dts.Property) => {
             if (p.name.startsWith('#')) {
                 return vscode.SymbolKind.Number;
@@ -727,9 +889,24 @@ class DTSEngine implements
                 return;
             }
 
-            const node = new vscode.SymbolInformation(e.node.fullName || '/', vscode.SymbolKind.Class, e.parent?.node?.fullName, e.loc);
+            const node = new vscode.SymbolInformation(
+                e.node.fullName || '/',
+                vscode.SymbolKind.Class,
+                e.parent?.node?.fullName,
+                e.loc
+            );
             symbols.push(node);
-            symbols.push(...e.properties.map(p => new vscode.SymbolInformation(p.name, propSymbolKind(p), e.node.fullName, p.loc)));
+            symbols.push(
+                ...e.properties.map(
+                    (p) =>
+                        new vscode.SymbolInformation(
+                            p.name,
+                            propSymbolKind(p),
+                            e.node.fullName,
+                            p.loc
+                        )
+                )
+            );
             e.children.forEach(addSymbol);
         };
 
@@ -737,24 +914,43 @@ class DTSEngine implements
         return symbols;
     }
 
-    provideWorkspaceSymbols(query: string, token: vscode.CancellationToken): vscode.ProviderResult<vscode.SymbolInformation[]> {
+    provideWorkspaceSymbols(
+        query: string,
+        token: vscode.CancellationToken
+    ): vscode.ProviderResult<vscode.SymbolInformation[]> {
         const ctx = dts.parser.currCtx;
         if (!ctx) {
             return [];
         }
 
-        return ctx.nodeArray()
-            .filter(n => n.entries.length > 0 )
-            .map(n => new vscode.SymbolInformation(n.fullName || '/', vscode.SymbolKind.Class, n.parent?.path ?? '', n.entries[0].nameLoc));
+        return ctx
+            .nodeArray()
+            .filter((n) => n.entries.length > 0)
+            .map(
+                (n) =>
+                    new vscode.SymbolInformation(
+                        n.fullName || '/',
+                        vscode.SymbolKind.Class,
+                        n.parent?.path ?? '',
+                        n.entries[0].nameLoc
+                    )
+            );
     }
 
-    getEntityDefinition(file: dts.DTSFile, uri: vscode.Uri, position: vscode.Position): dts.Node | dts.Property {
+    getEntityDefinition(
+        file: dts.DTSFile,
+        uri: vscode.Uri,
+        position: vscode.Position
+    ): dts.Node | dts.Property {
         const entry = file.getEntryAt(position, uri);
         if (!entry) {
             return;
         }
 
-        if (entry.nameLoc.uri.toString() === uri.toString() && entry.nameLoc.range.contains(position)) {
+        if (
+            entry.nameLoc.uri.toString() === uri.toString() &&
+            entry.nameLoc.range.contains(position)
+        ) {
             return entry.node;
         }
 
@@ -780,7 +976,11 @@ class DTSEngine implements
         }
     }
 
-    async provideTypeDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Location> {
+    async provideTypeDefinition(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken
+    ): Promise<vscode.Location> {
         const file = dts.parser.file(document.uri);
         if (!file) {
             return;
@@ -794,7 +994,9 @@ class DTSEngine implements
             typeFile = entity?.type?.filename;
         } else if (entity instanceof dts.Property) {
             // fetch the node of the original property declaration if available:
-            typeFile = entity.node.type.property(entity.name)?.node?.filename ?? entity.node.type?.filename;
+            typeFile =
+                entity.node.type.property(entity.name)?.node?.filename ??
+                entity.node.type?.filename;
             if (typeFile) {
                 // Try a best effort search for the property name within the type file. If it fails, we'll
                 // fall back to just opening the file.
@@ -804,7 +1006,9 @@ class DTSEngine implements
                 }
 
                 // This is a pretty optimistic regex, but it removes most mentions from comments and descriptions:
-                const offset = doc.getText().match(new RegExp(`(${entity.name}|"${entity.name}")\\s*:`))?.index;
+                const offset = doc
+                    .getText()
+                    .match(new RegExp(`(${entity.name}|"${entity.name}")\\s*:`))?.index;
                 if (offset !== undefined) {
                     range = doc.getWordRangeAtPosition(doc.positionAt(offset));
                 }
@@ -816,8 +1020,12 @@ class DTSEngine implements
         }
     }
 
-    async provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Hover> {
-        const hoverNode = (node: dts.Node, includeDefinition=true) => {
+    async provideHover(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken
+    ): Promise<vscode.Hover> {
+        const hoverNode = (node: dts.Node, includeDefinition = true) => {
             const entries = [new vscode.MarkdownString('`' + node.path + '`')];
 
             if (node.type?.valid) {
@@ -838,20 +1046,46 @@ class DTSEngine implements
                 if (propType.description) {
                     results.push(new vscode.MarkdownString(propType.description));
                 }
-                results.push(new vscode.MarkdownString('type: `' + (Array.isArray(propType.type) ? propType.type.join('`, `') : propType.type) + '`'));
+                results.push(
+                    new vscode.MarkdownString(
+                        'type: `' +
+                            (Array.isArray(propType.type)
+                                ? propType.type.join('`, `')
+                                : propType.type) +
+                            '`'
+                    )
+                );
 
                 if (propType.name.endsWith('-map') && propType.name !== 'interrupt-map') {
                     const nexusMap = prop.nexusMap;
                     if (nexusMap) {
                         const identifier = propType.name.slice(0, propType.name.length - 4);
-                        const nexusText = new vscode.MarkdownString(`Nexus map for \`${identifier}s\` properties.\n\n`);
-                        nexusText.appendMarkdown(`Nexus nodes' \`-map\` properties are translation tables from one domain to another.\n\n`);
-                        nexusText.appendMarkdown(`Each entry in the nexus map defines one translation from \`${identifier}\` references to this node to the mapped node.`);
+                        const nexusText = new vscode.MarkdownString(
+                            `Nexus map for \`${identifier}s\` properties.\n\n`
+                        );
+                        nexusText.appendMarkdown(
+                            `Nexus nodes' \`-map\` properties are translation tables from one domain to another.\n\n`
+                        );
+                        nexusText.appendMarkdown(
+                            `Each entry in the nexus map defines one translation from \`${identifier}\` references to this node to the mapped node.`
+                        );
                         if (nexusMap.length) {
-                            nexusText.appendMarkdown(`\n\nFor instance, because of the first entry in this map,`);
-                            nexusText.appendCodeblock(`${identifier}s = < ${prop.node.refName} ${nexusMap[0].in.map(i => i.toString(true)).join(' ')} >;`, 'dts');
+                            nexusText.appendMarkdown(
+                                `\n\nFor instance, because of the first entry in this map,`
+                            );
+                            nexusText.appendCodeblock(
+                                `${identifier}s = < ${prop.node.refName} ${nexusMap[0].in
+                                    .map((i) => i.toString(true))
+                                    .join(' ')} >;`,
+                                'dts'
+                            );
                             nexusText.appendMarkdown(`is equivalent to`);
-                            nexusText.appendCodeblock(`${identifier}s = < ${nexusMap[0].target.toString(true)} ${nexusMap[0].out.map(i => i.toString(true)).join(' ')} >;`, 'dts');
+                            nexusText.appendCodeblock(
+                                `${identifier}s = < ${nexusMap[0].target.toString(
+                                    true
+                                )} ${nexusMap[0].out.map((i) => i.toString(true)).join(' ')} >;`,
+                                'dts'
+                            );
                         }
                         results.push(nexusText);
                     }
@@ -860,9 +1094,10 @@ class DTSEngine implements
             }
         };
 
-        if (this.compiledDocProvider.is(document.uri) &&
-            document.getWordRangeAtPosition(position)) {
-
+        if (
+            this.compiledDocProvider.is(document.uri) &&
+            document.getWordRangeAtPosition(position)
+        ) {
             const entity = await this.compiledDocProvider.getEntity(position);
             if (entity instanceof dts.Node) {
                 return hoverNode(entity, false);
@@ -880,20 +1115,24 @@ class DTSEngine implements
             return;
         }
 
-        const line = file.lines.find(l => l.uri.fsPath === document.uri.fsPath && l.number === position.line);
+        const line = file.lines.find(
+            (l) => l.uri.fsPath === document.uri.fsPath && l.number === position.line
+        );
         if (line) {
-            const m = line.macros.find(m => position.character >= m.start && position.character < m.start + m.raw.length);
+            const m = line.macros.find(
+                (m) => position.character >= m.start && position.character < m.start + m.raw.length
+            );
             if (m) {
                 const singleLineVal = `#define ${m.raw} ${m.insert}`;
-                if (singleLineVal.length > 80) { // Spread across two lines:
+                if (singleLineVal.length > 80) {
+                    // Spread across two lines:
                     let value = `#define ${m.raw}`;
                     value += ' '.repeat(80 - value.length);
                     value += `\\\n\t${m.insert}`;
                     return new vscode.Hover({ language: 'dts', value });
-
                 }
 
-                return new vscode.Hover({language: 'dts', value: `#define ${m.raw} ${m.insert}`});
+                return new vscode.Hover({ language: 'dts', value: `#define ${m.raw} ${m.insert}` });
             }
         }
 
@@ -902,11 +1141,18 @@ class DTSEngine implements
             return;
         }
 
-        if (entry.nameLoc.uri.toString() === document.uri.toString() && entry.nameLoc.range.contains(position)) {
+        if (
+            entry.nameLoc.uri.toString() === document.uri.toString() &&
+            entry.nameLoc.range.contains(position)
+        ) {
             return hoverNode(entry.node);
         }
 
-        const prop = entry.properties.find(p => p.fullLoc.uri.toString() === document.uri.toString() && p.fullLoc.range.contains(position));
+        const prop = entry.properties.find(
+            (p) =>
+                p.fullLoc.uri.toString() === document.uri.toString() &&
+                p.fullLoc.range.contains(position)
+        );
         if (!prop) {
             return;
         }
@@ -938,10 +1184,16 @@ class DTSEngine implements
         return hoverProp(prop);
     }
 
-    provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): vscode.ProviderResult<vscode.Definition> {
-        if (this.compiledDocProvider.is(document.uri) &&
-            document.getWordRangeAtPosition(position)) {
-            return this.compiledDocProvider.getEntity(position).then(entity => {
+    provideDefinition(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken
+    ): vscode.ProviderResult<vscode.Definition> {
+        if (
+            this.compiledDocProvider.is(document.uri) &&
+            document.getWordRangeAtPosition(position)
+        ) {
+            return this.compiledDocProvider.getEntity(position).then((entity) => {
                 if (entity instanceof dts.Node) {
                     return entity.entries[0]?.nameLoc;
                 }
@@ -959,14 +1211,26 @@ class DTSEngine implements
             const range = document.getWordRangeAtPosition(position, /[\w.,-]+\.ya?ml/);
             const text = document.getText(range);
             if (text) {
-                return Object.values(typeLoader.types).find(t => t.find(tt => tt.filename.match(new RegExp('.*/' + text)))).map(t => new vscode.Location(vscode.Uri.file(t.filename), new vscode.Position(0, 0)));
+                return Object.values(typeLoader.types)
+                    .find((t) => t.find((tt) => tt.filename.match(new RegExp('.*/' + text))))
+                    .map(
+                        (t) =>
+                            new vscode.Location(
+                                vscode.Uri.file(t.filename),
+                                new vscode.Position(0, 0)
+                            )
+                    );
             }
             return [];
         }
 
-        const line = file.lines.find(l => l.uri.fsPath === document.uri.fsPath && l.number === position.line);
+        const line = file.lines.find(
+            (l) => l.uri.fsPath === document.uri.fsPath && l.number === position.line
+        );
         if (line) {
-            const m = line.macros.find(m => position.character >= m.start && position.character < m.start + m.raw.length);
+            const m = line.macros.find(
+                (m) => position.character >= m.start && position.character < m.start + m.raw.length
+            );
             if (m) {
                 return m.macro.definition?.location ?? [];
             }
@@ -974,27 +1238,35 @@ class DTSEngine implements
 
         const node = this.getEntityDefinition(file, document.uri, position);
         if (node instanceof dts.Node) {
-            return node.entries
-                .map(e => new vscode.Location(e.loc.uri, e.loc.range));
+            return node.entries.map((e) => new vscode.Location(e.loc.uri, e.loc.range));
         }
 
         const prop = file.getPropertyAt(position, document.uri);
         if (prop) {
-            if (prop.loc.range.contains(position) && prop.loc.uri.toString() === document.uri.toString()) {
-                return prop.node.uniqueProperties().find(p => p.name === prop.name)?.loc;
+            if (
+                prop.loc.range.contains(position) &&
+                prop.loc.uri.toString() === document.uri.toString()
+            ) {
+                return prop.node.uniqueProperties().find((p) => p.name === prop.name)?.loc;
             }
 
             const type = prop.valueAt(position, document.uri);
             if (prop.name === 'compatible' && type instanceof dts.StringValue) {
                 const filename = prop.node.type?.filename;
                 if (filename) {
-                    return new vscode.Location(vscode.Uri.file(filename), new vscode.Position(0, 0));
+                    return new vscode.Location(
+                        vscode.Uri.file(filename),
+                        new vscode.Position(0, 0)
+                    );
                 }
             }
         }
     }
 
-    resolveCompletionItem?(item: vscode.CompletionItem, token: vscode.CancellationToken): vscode.ProviderResult<vscode.CompletionItem> {
+    resolveCompletionItem?(
+        item: vscode.CompletionItem,
+        token: vscode.CancellationToken
+    ): vscode.ProviderResult<vscode.CompletionItem> {
         const n = item['dts-node-type'] as NodeType;
         if (n) {
             const isAbsolutePath = n.name?.startsWith('/');
@@ -1008,7 +1280,7 @@ class DTSEngine implements
 
             const addrCells = parent?.addrCells() ?? 2;
             const sizeCells = parent?.sizeCells() ?? 1;
-            const insertAddr = (addrCells === 1 && !isAbsolutePath);
+            const insertAddr = addrCells === 1 && !isAbsolutePath;
             if (insertAddr) {
                 snippet.appendText('@');
                 snippet.appendPlaceholder('0');
@@ -1016,7 +1288,8 @@ class DTSEngine implements
 
             snippet.appendText(` {\n`);
 
-            if (!isAbsolutePath && n.name) { // nodes with no name are child nodes, and don't need compatible properties
+            if (!isAbsolutePath && n.name) {
+                // nodes with no name are child nodes, and don't need compatible properties
                 snippet.appendText(`\tcompatible = "${n.name}";\n`);
             }
 
@@ -1052,12 +1325,14 @@ class DTSEngine implements
                 snippet.appendText(surroundingBraces[1]);
             };
 
-            const requiredProps = n.properties.filter(p => p.required && p.name !== 'compatible') ?? [];
+            const requiredProps =
+                n.properties.filter((p) => p.required && p.name !== 'compatible') ?? [];
             if (requiredProps.length > 0) {
+                const defaultGpioController = dts.parser.currCtx
+                    ?.nodeArray()
+                    .find((node) => node.property('gpio-controller'));
 
-                const defaultGpioController = dts.parser.currCtx?.nodeArray().find(node => node.property('gpio-controller'));
-
-                requiredProps.forEach(p => {
+                requiredProps.forEach((p) => {
                     snippet.appendText(`\t${p.name}`);
                     if (p.type === 'boolean') {
                         /* No value */
@@ -1086,12 +1361,23 @@ class DTSEngine implements
                             snippet.appendText('>');
                         } else if (p.name === 'label') {
                             insertValueSnippet(p, item.label.toUpperCase());
-                        } else if (p.type === 'phandle-array' && p.name.endsWith('-gpios') && defaultGpioController) {
+                        } else if (
+                            p.type === 'phandle-array' &&
+                            p.name.endsWith('-gpios') &&
+                            defaultGpioController
+                        ) {
                             snippet.appendText('<');
-                            snippet.appendPlaceholder(`&${defaultGpioController.labels()[0] ?? '"' + defaultGpioController.path + '"'}`);
-                            const cells = defaultGpioController.type?.cells(dts.cellName(p.name)) as string[];
+                            snippet.appendPlaceholder(
+                                `&${
+                                    defaultGpioController.labels()[0] ??
+                                    '"' + defaultGpioController.path + '"'
+                                }`
+                            );
+                            const cells = defaultGpioController.type?.cells(
+                                dts.cellName(p.name)
+                            ) as string[];
                             if (cells) {
-                                cells.forEach(c => {
+                                cells.forEach((c) => {
                                     snippet.appendText(' ');
                                     snippet.appendPlaceholder(c);
                                 });
@@ -1122,7 +1408,12 @@ class DTSEngine implements
         return item;
     }
 
-    async provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext): Promise<vscode.CompletionItem[] | vscode.CompletionList> {
+    async provideCompletionItems(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken,
+        context: vscode.CompletionContext
+    ): Promise<vscode.CompletionItem[] | vscode.CompletionList> {
         await dts.parser.stable();
         const file = dts.parser.file(document.uri);
         if (!file) {
@@ -1135,24 +1426,42 @@ class DTSEngine implements
         const line = document.getText(lineRange);
         const before = line.slice(0, position.character);
 
-        const labelItems = (type: 'node' | 'cell' | 'ref', filter: (node: dts.Node) => boolean = _ => true, prop?: string) => {
-            const labels: {label: string, node: dts.Node, type?: NodeType}[] = [];
-            file.ctx.nodeArray().filter(filter).forEach(node => {
-                const type = typeLoader.nodeType(node);
-                labels.push(...node.labels().map(label => { return { label, node, type }; }));
-            });
+        const labelItems = (
+            type: 'node' | 'cell' | 'ref',
+            filter: (node: dts.Node) => boolean = (_) => true,
+            prop?: string
+        ) => {
+            const labels: { label: string; node: dts.Node; type?: NodeType }[] = [];
+            file.ctx
+                .nodeArray()
+                .filter(filter)
+                .forEach((node) => {
+                    const type = typeLoader.nodeType(node);
+                    labels.push(
+                        ...node.labels().map((label) => {
+                            return { label, node, type };
+                        })
+                    );
+                });
 
             const withAmp = !before?.endsWith('&');
 
-            return labels.map(l => {
-                const completion = new vscode.CompletionItem(`&${l.label}`, vscode.CompletionItemKind.Class);
+            return labels.map((l) => {
+                const completion = new vscode.CompletionItem(
+                    `&${l.label}`,
+                    vscode.CompletionItemKind.Class
+                );
                 if (type === 'node') {
-                    completion.insertText = new vscode.SnippetString((withAmp ? completion.label : l.label) + ' {\n\t');
+                    completion.insertText = new vscode.SnippetString(
+                        (withAmp ? completion.label : l.label) + ' {\n\t'
+                    );
                     completion.insertText.appendTabstop();
                     completion.insertText.appendText('\n};\n');
                 } else if (type === 'cell' && prop) {
-                    completion.insertText = new vscode.SnippetString(withAmp ? completion.label : l.label);
-                    l.node.refCellNames(prop)?.forEach(cell => {
+                    completion.insertText = new vscode.SnippetString(
+                        withAmp ? completion.label : l.label
+                    );
+                    l.node.refCellNames(prop)?.forEach((cell) => {
                         (<vscode.SnippetString>completion.insertText).appendText(' ');
                         (<vscode.SnippetString>completion.insertText).appendPlaceholder(cell);
                     });
@@ -1175,45 +1484,64 @@ class DTSEngine implements
             });
         };
 
-        const deleteLine = line.slice(0, position.character).match(/\/delete-(node|property)\/\s+[^\s;]*$/);
+        const deleteLine = line
+            .slice(0, position.character)
+            .match(/\/delete-(node|property)\/\s+[^\s;]*$/);
         if (deleteLine) {
             if (deleteLine[1] === 'node') {
                 if (node) {
-                    return [...node.children().map(n => new vscode.CompletionItem(n.fullName, vscode.CompletionItemKind.Class)), ...labelItems('ref')];
+                    return [
+                        ...node
+                            .children()
+                            .map(
+                                (n) =>
+                                    new vscode.CompletionItem(
+                                        n.fullName,
+                                        vscode.CompletionItemKind.Class
+                                    )
+                            ),
+                        ...labelItems('ref'),
+                    ];
                 } else {
                     return labelItems('ref');
                 }
             } else if (node) {
-                return node.uniqueProperties().map(p => new vscode.CompletionItem(p.name, vscode.CompletionItemKind.Property));
+                return node
+                    .uniqueProperties()
+                    .map(
+                        (p) => new vscode.CompletionItem(p.name, vscode.CompletionItemKind.Property)
+                    );
             }
         }
 
-        const defines = Object.values(dts.parser.ctx(document.uri)?.defines ?? {}).map(m => {
-            const item = new vscode.CompletionItem(m.name);
-            if (m.args) {
-                item.kind = vscode.CompletionItemKind.Function;
-                item.insertText = new vscode.SnippetString(m.name + '(');
-                m.args.forEach((a, i) => {
-                    (<vscode.SnippetString>item.insertText).appendPlaceholder(a);
-                    if (i < m.args.length - 1) {
-                        (<vscode.SnippetString>item.insertText).appendText(', ');
-                    }
-                });
-                item.insertText.appendText(')');
-                item.detail = 'Macro';
-            } else {
-                item.kind = vscode.CompletionItemKind.Constant;
-                item.detail = 'Define';
-            }
+        const defines =
+            Object.values(dts.parser.ctx(document.uri)?.defines ?? {}).map((m) => {
+                const item = new vscode.CompletionItem(m.name);
+                if (m.args) {
+                    item.kind = vscode.CompletionItemKind.Function;
+                    item.insertText = new vscode.SnippetString(m.name + '(');
+                    m.args.forEach((a, i) => {
+                        (<vscode.SnippetString>item.insertText).appendPlaceholder(a);
+                        if (i < m.args.length - 1) {
+                            (<vscode.SnippetString>item.insertText).appendText(', ');
+                        }
+                    });
+                    item.insertText.appendText(')');
+                    item.detail = 'Macro';
+                } else {
+                    item.kind = vscode.CompletionItemKind.Constant;
+                    item.detail = 'Define';
+                }
 
-            if (item.label.startsWith('_')) { // Reserved defines go last
-                item.sortText = `~~~~${item.label}`;
-            } else {
-                item.sortText = `~~~${item.label}`;
-            }
+                if (item.label.startsWith('_')) {
+                    // Reserved defines go last
+                    item.sortText = `~~~~${item.label}`;
+                } else {
+                    item.sortText = `~~~${item.label}`;
+                }
 
-            return item;
-        }) ?? [];
+                return item;
+            }) ?? [];
 
         if (!node) {
             if (before.match(/&[\w-]*$/)) {
@@ -1225,7 +1553,8 @@ class DTSEngine implements
             root.insertText.appendTabstop();
             root.insertText.appendText('\n};\n');
             root.detail = 'root node';
-            root.documentation = 'The devicetree has a single root node of which all other device nodes are descendants. The full path to the root node is /.';
+            root.documentation =
+                'The devicetree has a single root node of which all other device nodes are descendants. The full path to the root node is /.';
             root.preselect = true;
 
             return [root, ...labelItems('node'), ...defines];
@@ -1236,10 +1565,10 @@ class DTSEngine implements
                 propType = propType[0];
             }
             switch (propType) {
-                case "string":
-                case "string-array":
+                case 'string':
+                case 'string-array':
                     return ` "${value}"`;
-                case "uint8-array":
+                case 'uint8-array':
                     return ` [${value}]`;
                 default:
                     return ` <${value}>`;
@@ -1250,38 +1579,60 @@ class DTSEngine implements
         if (prop) {
             if (before.includes('=')) {
                 const after = line.slice(position.character);
-                const surroundingBraces = [['<', '>'], ['"', '"'], ['[', ']']];
-                const braces = surroundingBraces.find(b => before.includes(b[0], before.indexOf('=')) && after.includes(b[1]));
+                const surroundingBraces = [
+                    ['<', '>'],
+                    ['"', '"'],
+                    ['[', ']'],
+                ];
+                const braces = surroundingBraces.find(
+                    (b) => before.includes(b[0], before.indexOf('=')) && after.includes(b[1])
+                );
                 let start: number, end: number;
                 if (braces) {
                     start = line.slice(0, position.character).lastIndexOf(braces[0]) + 1;
                     end = line.indexOf(braces[1], position.character);
                 } else {
                     start = line.indexOf('=') + 1;
-                    end = position.character + (after.indexOf(';') >= 0 ? after.indexOf(';') : after.length);
+                    end =
+                        position.character +
+                        (after.indexOf(';') >= 0 ? after.indexOf(';') : after.length);
                 }
 
                 const range = new vscode.Range(position.line, start, position.line, end);
-                const propType = (node.type?.property(prop.name));
+                const propType = node.type?.property(prop.name);
                 if (propType) {
                     if (propType.enum) {
-                        const filterText = document.getText(document.getWordRangeAtPosition(position));
-                        return propType.enum.map(e => {
-                            const completion = new vscode.CompletionItem(e.toString(), vscode.CompletionItemKind.EnumMember);
+                        const filterText = document.getText(
+                            document.getWordRangeAtPosition(position)
+                        );
+                        return propType.enum.map((e) => {
+                            const completion = new vscode.CompletionItem(
+                                e.toString(),
+                                vscode.CompletionItemKind.EnumMember
+                            );
                             completion.range = range;
                             completion.filterText = filterText;
                             if (!braces) {
-                                completion.insertText = propValueTemplate(e.toString(), propType.type);
+                                completion.insertText = propValueTemplate(
+                                    e.toString(),
+                                    propType.type
+                                );
                             }
                             return completion;
                         });
                     }
 
                     if (propType.const) {
-                        const completion = new vscode.CompletionItem(propType.const.toString(), vscode.CompletionItemKind.Constant);
+                        const completion = new vscode.CompletionItem(
+                            propType.const.toString(),
+                            vscode.CompletionItemKind.Constant
+                        );
                         completion.range = range;
                         if (!braces) {
-                            completion.insertText = propValueTemplate(propType.const.toString(), propType.type);
+                            completion.insertText = propValueTemplate(
+                                propType.const.toString(),
+                                propType.type
+                            );
                         }
                     }
                 }
@@ -1289,141 +1640,178 @@ class DTSEngine implements
                 const ref = before.match(/&[\w-]*$/);
                 if (ref) {
                     const cellName = '#' + dts.cellName(prop.name);
-                    return labelItems(braces ? 'cell' : 'ref', node => !braces || !!node.property(cellName), prop.name);
+                    return labelItems(
+                        braces ? 'cell' : 'ref',
+                        (node) => !braces || !!node.property(cellName),
+                        prop.name
+                    );
                 }
 
                 if (prop.name === 'compatible') {
-                    return Object.keys(typeLoader.types).filter(t => !t.startsWith('/')).map(typename => typeLoader.types[typename].map(type => {
-                            const completion = new vscode.CompletionItem(typename, vscode.CompletionItemKind.EnumMember);
-                            completion.range = range;
-                            if (!braces) {
-                                completion.insertText = propValueTemplate(typename, 'string');
-                            }
+                    return Object.keys(typeLoader.types)
+                        .filter((t) => !t.startsWith('/'))
+                        .map((typename) =>
+                            typeLoader.types[typename].map((type) => {
+                                const completion = new vscode.CompletionItem(
+                                    typename,
+                                    vscode.CompletionItemKind.EnumMember
+                                );
+                                completion.range = range;
+                                if (!braces) {
+                                    completion.insertText = propValueTemplate(typename, 'string');
+                                }
 
-                            completion.detail = type.compatible;
-                            completion.documentation = type.description ?? '';
-                            return completion;
-                        })
-                    ).reduce((all, types) => {
-                        all.push(...types);
-                        return all;
-                    }, []);
+                                completion.detail = type.compatible;
+                                completion.documentation = type.description ?? '';
+                                return completion;
+                            })
+                        )
+                        .reduce((all, types) => {
+                            all.push(...types);
+                            return all;
+                        }, []);
                 }
             }
         }
 
         if (before.match(/&[\w-]*$/)) {
-            return labelItems('node', n => node.children().includes(n));
+            return labelItems('node', (n) => node.children().includes(n));
         }
 
         const nodeProps = node.properties();
 
         let typeProps = node.type?.properties ?? [];
         if (!document.getWordRangeAtPosition(position)) {
-            typeProps = typeProps.filter(p => (p.name !== '#size-cells') && (p.name !== '#address-cells') && p.node);
+            typeProps = typeProps.filter(
+                (p) => p.name !== '#size-cells' && p.name !== '#address-cells' && p.node
+            );
         }
 
-        const propCompletions = typeProps
-            .map(p => {
-                const completion = new vscode.CompletionItem(p.name, vscode.CompletionItemKind.Property);
-                completion.detail = Array.isArray(p.type) ? p.type[0] : p.type;
-                if (p.name === 'compatible') {
-                    completion.kind = vscode.CompletionItemKind.TypeParameter;
-                }
+        const propCompletions = typeProps.map((p) => {
+            const completion = new vscode.CompletionItem(
+                p.name,
+                vscode.CompletionItemKind.Property
+            );
+            completion.detail = Array.isArray(p.type) ? p.type[0] : p.type;
+            if (p.name === 'compatible') {
+                completion.kind = vscode.CompletionItemKind.TypeParameter;
+            }
 
-                // Put the properties at the top:
-                completion.sortText = '   ' + completion.label;
-                completion.documentation = new vscode.MarkdownString();
-                completion.documentation.appendText(p.description ?? '');
-                if (p.required) {
-                    completion.documentation.appendMarkdown(`\n\n*This property is required.*`);
-                }
+            // Put the properties at the top:
+            completion.sortText = '   ' + completion.label;
+            completion.documentation = new vscode.MarkdownString();
+            completion.documentation.appendText(p.description ?? '');
+            if (p.required) {
+                completion.documentation.appendMarkdown(`\n\n*This property is required.*`);
+            }
 
-                const nodeProp = nodeProps.find(prop => prop.name === p.name);
-                if (nodeProp) {
-                    completion.documentation.appendMarkdown(`\n\n*Already defined as:*`);
-                    completion.documentation.appendCodeblock(nodeProp.toString(), 'dts');
-                } else {
-                    // Put the unused properties at the very top:
-                    completion.sortText = ' ' + completion.sortText;
-                }
+            const nodeProp = nodeProps.find((prop) => prop.name === p.name);
+            if (nodeProp) {
+                completion.documentation.appendMarkdown(`\n\n*Already defined as:*`);
+                completion.documentation.appendCodeblock(nodeProp.toString(), 'dts');
+            } else {
+                // Put the unused properties at the very top:
+                completion.sortText = ' ' + completion.sortText;
+            }
 
-                completion.insertText = new vscode.SnippetString();
-                appendPropSnippet(p, completion.insertText, node);
-                return completion;
-            });
+            completion.insertText = new vscode.SnippetString();
+            appendPropSnippet(p, completion.insertText, node);
+            return completion;
+        });
 
         let nodes: NodeType[] = Object.values(typeLoader.types)
-            .filter(n => n[0].name !== '/')
+            .filter((n) => n[0].name !== '/')
             .reduce((all, n) => [...all, ...n], [])
-            .filter(n => n.valid && n.name && (!n.name.startsWith('/') || n.name.startsWith(node.name)));
+            .filter(
+                (n) =>
+                    n.valid && n.name && (!n.name.startsWith('/') || n.name.startsWith(node.name))
+            );
 
         // Do some pretty conservative filtering, not the end of the world if the user's node doesn't show up
         if (node.type?.bus) {
-            nodes = nodes.filter(n => n.onBus === node.type.bus);
+            nodes = nodes.filter((n) => n.onBus === node.type.bus);
         } else if (node.type?.child) {
             nodes = [node.type.child];
         } else if (node.name === 'cpus') {
-            nodes = nodes.filter(n => n.includes('cpu'));
+            nodes = nodes.filter((n) => n.includes('cpu'));
         } else if (node.name === 'soc') {
             // Stuff on the soc node are peripherals, should be made by the chip vendor
             const vendor = node.parent.property('compatible')?.string?.match(/(.*?),/)?.[1];
-            nodes = nodes.filter(n => !n.onBus && !n.includes('cpu') && (!vendor || n.name.startsWith(vendor + ',')));
+            nodes = nodes.filter(
+                (n) =>
+                    !n.onBus && !n.includes('cpu') && (!vendor || n.name.startsWith(vendor + ','))
+            );
         } else if (node.path === '/') {
-            nodes = nodes.filter(n => n.name.startsWith('/'));
+            nodes = nodes.filter((n) => n.name.startsWith('/'));
         } else {
             nodes = [];
         }
 
-        const nodeCompletions = nodes.map(n => {
-            let name: string;
-            // Find a reasonable name
-            const parts = n.name?.split(',');
-            if (!n.name) {
-                name = 'node';
-            } else if (n.name.match(/^\/[\w-,]+\/$/)) {
-                // absolute paths, e.g. /chosen/ should be stripped of their slashes
-                name = n.name.replace(/\//g, '');
-            } else if (parts.length > 1) {
-                // If the node is named something like "bosch,bme280", use "bme280":
-                name = parts.pop();
-            } else if (n.filename) {
-                name = path.basename(n.filename, '.yaml');
-            } else {
-                return null;
-            }
+        const nodeCompletions = nodes
+            .map((n) => {
+                let name: string;
+                // Find a reasonable name
+                const parts = n.name?.split(',');
+                if (!n.name) {
+                    name = 'node';
+                } else if (n.name.match(/^\/[\w-,]+\/$/)) {
+                    // absolute paths, e.g. /chosen/ should be stripped of their slashes
+                    name = n.name.replace(/\//g, '');
+                } else if (parts.length > 1) {
+                    // If the node is named something like "bosch,bme280", use "bme280":
+                    name = parts.pop();
+                } else if (n.filename) {
+                    name = path.basename(n.filename, '.yaml');
+                } else {
+                    return null;
+                }
 
-            const completion = new vscode.CompletionItem(name, vscode.CompletionItemKind.Class);
-            completion.detail = n.name;
-            completion.documentation = n.description;
-            completion['dts-node-type'] = n;
-            completion['dts-parent'] = node;
-            return completion;
-        }).filter(n => n);
+                const completion = new vscode.CompletionItem(name, vscode.CompletionItemKind.Class);
+                completion.detail = n.name;
+                completion.documentation = n.description;
+                completion['dts-node-type'] = n;
+                completion['dts-parent'] = node;
+                return completion;
+            })
+            .filter((n) => n);
 
-        const childCompletions = node.children().filter(n => !entry.children.find(child => child.node === n)).map(n => {
-            const item = new vscode.CompletionItem(n.fullName, vscode.CompletionItemKind.Module);
-            item.insertText = new vscode.SnippetString(n.fullName + ' {\n\t');
-            item.insertText.appendTabstop();
-            item.insertText.appendText('\n};');
-            item.detail = n.type?.name;
-            item.documentation = n.type?.description;
-            return item;
-        });
-
+        const childCompletions = node
+            .children()
+            .filter((n) => !entry.children.find((child) => child.node === n))
+            .map((n) => {
+                const item = new vscode.CompletionItem(
+                    n.fullName,
+                    vscode.CompletionItemKind.Module
+                );
+                item.insertText = new vscode.SnippetString(n.fullName + ' {\n\t');
+                item.insertText.appendTabstop();
+                item.insertText.appendText('\n};');
+                item.detail = n.type?.name;
+                item.documentation = n.type?.description;
+                return item;
+            });
 
         // commands (/command/):
         const commandStart = line.search(/\/(?:$|\w)/);
         let commandRange: vscode.Range = undefined;
         if (commandStart >= 0) {
-            commandRange = new vscode.Range(new vscode.Position(position.line, commandStart), new vscode.Position(position.line, position.character-1));
+            commandRange = new vscode.Range(
+                new vscode.Position(position.line, commandStart),
+                new vscode.Position(position.line, position.character - 1)
+            );
         }
 
-        const deleteNode = new vscode.CompletionItem('/delete-node/', vscode.CompletionItemKind.Function);
+        const deleteNode = new vscode.CompletionItem(
+            '/delete-node/',
+            vscode.CompletionItemKind.Function
+        );
         deleteNode.range = commandRange;
         deleteNode.sortText = `~~${deleteNode.label}`;
 
-        const deleteProp = new vscode.CompletionItem('/delete-property/', vscode.CompletionItemKind.Function);
+        const deleteProp = new vscode.CompletionItem(
+            '/delete-property/',
+            vscode.CompletionItemKind.Function
+        );
         deleteProp.range = commandRange;
         deleteProp.sortText = `~~${deleteProp.label}`;
 
@@ -1437,7 +1825,12 @@ class DTSEngine implements
         ];
     }
 
-    provideSignatureHelp(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.SignatureHelpContext): vscode.ProviderResult<vscode.SignatureHelp> {
+    provideSignatureHelp(
+        document: vscode.TextDocument,
+        position: vscode.Position,
+        token: vscode.CancellationToken,
+        context: vscode.SignatureHelpContext
+    ): vscode.ProviderResult<vscode.SignatureHelp> {
         const ctx = dts.parser.ctx(document.uri);
         if (!ctx) {
             return;
@@ -1455,7 +1848,10 @@ class DTSEngine implements
 
         const propType = node.type.property(prop.name);
         if (propType?.type === 'int' && propType.description) {
-            const info = new vscode.SignatureInformation(`${node.path}${prop.name}`, propType.description);
+            const info = new vscode.SignatureInformation(
+                `${node.path}${prop.name}`,
+                propType.description
+            );
             info.parameters = [new vscode.ParameterInformation(`number`)];
             const help = new vscode.SignatureHelp();
             help.activeParameter = 0;
@@ -1474,8 +1870,12 @@ class DTSEngine implements
             return;
         }
 
-        const entryIdx = value.findIndex(v => v.loc.range.contains(position));
-        if (entryIdx === -1 || !(value[entryIdx] instanceof dts.ArrayValue) || !value[entryIdx]?.val?.length) {
+        const entryIdx = value.findIndex((v) => v.loc.range.contains(position));
+        if (
+            entryIdx === -1 ||
+            !(value[entryIdx] instanceof dts.ArrayValue) ||
+            !value[entryIdx]?.val?.length
+        ) {
             return;
         }
 
@@ -1484,12 +1884,16 @@ class DTSEngine implements
             return;
         }
 
-        const entryNames = prop.valueNames().map(e => `${capitalize(prop.name.slice(0, prop.name.length - 1))} "${e}"`);
+        const entryNames = prop
+            .valueNames()
+            .map((e) => `${capitalize(prop.name.slice(0, prop.name.length - 1))} "${e}"`);
         const cells = names[entryIdx];
-        const paramIndex = (value[entryIdx].val.findIndex(v => v.loc.range.contains(position)) ?? (value[entryIdx].val.length - 1)) % cells.length;
+        const paramIndex =
+            (value[entryIdx].val.findIndex((v) => v.loc.range.contains(position)) ??
+                value[entryIdx].val.length - 1) % cells.length;
 
         let signature = prop.name + ` = < `;
-        const params = cells.map(name => {
+        const params = cells.map((name) => {
             const start = signature.length;
             signature += name + ' ';
             return new vscode.ParameterInformation([start, start + name.length]);
@@ -1497,18 +1901,30 @@ class DTSEngine implements
 
         signature += '>;';
 
-        const info = new vscode.SignatureInformation(signature, [entryNames[entryIdx], propType?.description].filter(t => t).join('\n\n'));
+        const info = new vscode.SignatureInformation(
+            signature,
+            [entryNames[entryIdx], propType?.description].filter((t) => t).join('\n\n')
+        );
         info.parameters = params;
 
-        return <vscode.SignatureHelp>{activeParameter: paramIndex, activeSignature: 0, signatures: [info]};
+        return <vscode.SignatureHelp>{
+            activeParameter: paramIndex,
+            activeSignature: 0,
+            signatures: [info],
+        };
     }
 
-    provideDocumentRangeFormattingEdits(document: vscode.TextDocument, r: vscode.Range, options: vscode.FormattingOptions, token: vscode.CancellationToken): vscode.ProviderResult<vscode.TextEdit[]> {
+    provideDocumentRangeFormattingEdits(
+        document: vscode.TextDocument,
+        r: vscode.Range,
+        options: vscode.FormattingOptions,
+        token: vscode.CancellationToken
+    ): vscode.ProviderResult<vscode.TextEdit[]> {
         let text = document.getText();
         let start = document.offsetAt(r.start);
         let end = document.offsetAt(r.end);
         start = text.slice(0, start).lastIndexOf(';') + 1;
-        end += text.slice(end-1).indexOf(';') + 1;
+        end += text.slice(end - 1).indexOf(';') + 1;
         if (end < start) {
             end = text.length - 1;
         }
@@ -1517,7 +1933,9 @@ class DTSEngine implements
 
         const range = new vscode.Range(document.positionAt(start), document.positionAt(end));
         text = document.getText(range);
-        const firstLine = document.getText(new vscode.Range(range.start.line, 0, range.start.line, 99999));
+        const firstLine = document.getText(
+            new vscode.Range(range.start.line, 0, range.start.line, 99999)
+        );
         let indent = firstLine.match(/^\s*/)[0];
 
         text = text.replace(/([\w,-]+)\s*:[\t ]*/g, '$1: ');
@@ -1526,7 +1944,10 @@ class DTSEngine implements
         text = text.replace(/(\w+)\s*=\s*(".*?"|<.*?>|\[.*?\])\s*;/g, '$1 = $2;');
         text = text.replace(/<\s*(.*?)\s*>/g, '<$1>');
         text = text.replace(/([;{])[ \t]+\r?\n/g, '$1' + eol);
-        text = text.replace(/\[\s*((?:[\da-fA-F]{2}\s*)+)\s*\]/g, (_, contents: string) => `[ ${contents.replace(/([\da-fA-F]{2})\s*/g, '$1 ')} ]`);
+        text = text.replace(
+            /\[\s*((?:[\da-fA-F]{2}\s*)+)\s*\]/g,
+            (_, contents: string) => `[ ${contents.replace(/([\da-fA-F]{2})\s*/g, '$1 ')} ]`
+        );
         text = text.replace(/[ \t]+\r?\n/g, eol);
 
         // convert tabs to spaces to get the right line width:
@@ -1534,82 +1955,110 @@ class DTSEngine implements
 
         const indentStep = options.insertSpaces ? ' '.repeat(options.tabSize) : '\t';
         if (options.insertSpaces) {
-            text = text.replace(/^\t+/g, tabs => indentStep.repeat(tabs.length));
+            text = text.replace(/^\t+/g, (tabs) => indentStep.repeat(tabs.length));
         } else {
-            text = text.replace(new RegExp(`^( {${options.tabSize}})+`, 'gm'), spaces => '\t'.repeat(spaces.length / options.tabSize));
+            text = text.replace(new RegExp(`^( {${options.tabSize}})+`, 'gm'), (spaces) =>
+                '\t'.repeat(spaces.length / options.tabSize)
+            );
         }
 
         // indentation
         let commaIndent = '';
-        text = text.split(/\r?\n/).map(line => {
-            if (line.length === 0) {
-                return line;
-            }
-
-            const delta = (line.match(/{/g) || []).length - (line.match(/}/g) || []).length;
-            if (delta < 0) {
-                indent = indent.slice(indentStep.repeat(-delta).length);
-            }
-            const retval = line.replace(/^[ \t]*/g, indent + commaIndent);
-            if (delta > 0) {
-                indent += indentStep.repeat(delta);
-            }
-
-            // property values with commas should all have the same indentation
-            if (commaIndent.length === 0 && line.endsWith(',')) {
-                commaIndent = ' '.repeat(line.replace(/\t/g, ' '.repeat(options.tabSize)).indexOf('=') + 2 - indent.replace(/\t/g, ' '.repeat(options.tabSize)).length);
-
-                if (!options.insertSpaces) {
-                    commaIndent = commaIndent.replace(new RegExp(' '.repeat(options.tabSize), 'g'), '\t');
+        text = text
+            .split(/\r?\n/)
+            .map((line) => {
+                if (line.length === 0) {
+                    return line;
                 }
-            } else if (line.endsWith(';')) {
-                commaIndent = '';
-            }
 
-            return retval;
-        }).join(eol);
+                const delta = (line.match(/{/g) || []).length - (line.match(/}/g) || []).length;
+                if (delta < 0) {
+                    indent = indent.slice(indentStep.repeat(-delta).length);
+                }
+                const retval = line.replace(/^[ \t]*/g, indent + commaIndent);
+                if (delta > 0) {
+                    indent += indentStep.repeat(delta);
+                }
 
+                // property values with commas should all have the same indentation
+                if (commaIndent.length === 0 && line.endsWith(',')) {
+                    commaIndent = ' '.repeat(
+                        line.replace(/\t/g, ' '.repeat(options.tabSize)).indexOf('=') +
+                            2 -
+                            indent.replace(/\t/g, ' '.repeat(options.tabSize)).length
+                    );
+
+                    if (!options.insertSpaces) {
+                        commaIndent = commaIndent.replace(
+                            new RegExp(' '.repeat(options.tabSize), 'g'),
+                            '\t'
+                        );
+                    }
+                } else if (line.endsWith(';')) {
+                    commaIndent = '';
+                }
+
+                return retval;
+            })
+            .join(eol);
 
         // move comma separated property values on new lines:
-        text = text.replace(/([ \t]*)([#\w-]+)\s*=((?:\s*(?:".*?"|<.*?>|\[.*?\])[ \t]*,?\s*(\/\*.*?\*\/)?\s*)+);/gm, (line: string, indentation: string, p: string, val: string) => {
-            if (line.length < 80) {
-                return line;
-            }
-
-            const regex =  new RegExp(/((?:".*?"|<.*?>|\[.*?\])[ \t]*,?)[ \t]*(\/\*.*?\*\/)?/gm);
-            const parts = [];
-            let entry: RegExpMatchArray;
-            while ((entry = regex.exec(val))) {
-                if (entry[2]) {
-                    parts.push(entry[1] + ' ' + entry[2]);
-                } else {
-                    parts.push(entry[1]);
+        text = text.replace(
+            /([ \t]*)([#\w-]+)\s*=((?:\s*(?:".*?"|<.*?>|\[.*?\])[ \t]*,?\s*(\/\*.*?\*\/)?\s*)+);/gm,
+            (line: string, indentation: string, p: string, val: string) => {
+                if (line.length < 80) {
+                    return line;
                 }
-            }
 
-            if (!parts.length) {
-                return line;
-            }
+                const regex = new RegExp(/((?:".*?"|<.*?>|\[.*?\])[ \t]*,?)[ \t]*(\/\*.*?\*\/)?/gm);
+                const parts = [];
+                let entry: RegExpMatchArray;
+                while ((entry = regex.exec(val))) {
+                    if (entry[2]) {
+                        parts.push(entry[1] + ' ' + entry[2]);
+                    } else {
+                        parts.push(entry[1]);
+                    }
+                }
 
-            const start = `${indentation}${p} = `;
-            return start + parts.map(p => p.trim()).join(`${eol}${indentation}${' '.repeat(p.length + 3)}`) + ';';
-        });
+                if (!parts.length) {
+                    return line;
+                }
+
+                const start = `${indentation}${p} = `;
+                return (
+                    start +
+                    parts
+                        .map((p) => p.trim())
+                        .join(`${eol}${indentation}${' '.repeat(p.length + 3)}`) +
+                    ';'
+                );
+            }
+        );
 
         // The indentation stuff broke multiline comments. The * on the follow up lines must align with the * in /*:
-        text = text.replace(/\/\*[\s\S]*?\*\//g, content => {
+        text = text.replace(/\/\*[\s\S]*?\*\//g, (content) => {
             return content.replace(/^([ \t]*)\*/gm, '$1 *');
         });
 
         return [new vscode.TextEdit(range, text)];
     }
 
-    async provideDocumentLinks(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.DocumentLink[]> {
+    async provideDocumentLinks(
+        document: vscode.TextDocument,
+        token: vscode.CancellationToken
+    ): Promise<vscode.DocumentLink[]> {
         await dts.parser.stable();
-        return dts.parser.file(document.uri)?.includes.filter(i => i.loc.uri.fsPath === document.uri.fsPath).map(i => {
-            const link = new vscode.DocumentLink(i.loc.range, i.dst);
-            link.tooltip = i.dst.fsPath;
-            return link;
-        }) ?? [];
+        return (
+            dts.parser
+                .file(document.uri)
+                ?.includes.filter((i) => i.loc.uri.fsPath === document.uri.fsPath)
+                .map((i) => {
+                    const link = new vscode.DocumentLink(i.loc.range, i.dst);
+                    link.tooltip = i.dst.fsPath;
+                    return link;
+                }) ?? []
+        );
     }
 }
 
@@ -1627,9 +2076,7 @@ export async function secondaryActivate(): Promise<void> {
     treeView.activate(extensionContext);
 }
 
-export async function activate(
-    context: vscode.ExtensionContext
-): Promise<API> {
+export async function activate(context: vscode.ExtensionContext): Promise<API> {
     api = new API();
     extensionContext = context;
     if (!vscode.extensions.getExtension('nordic-semiconductor.nrf-connect')) {
@@ -1640,5 +2087,4 @@ export async function activate(
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-function
-export function deactivate() {
-}
+export function deactivate() {}

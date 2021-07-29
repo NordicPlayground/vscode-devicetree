@@ -9,31 +9,33 @@ import * as fs from 'fs';
 import { DiagnosticsSet } from './diags';
 import { evaluateExpr } from './util';
 
-export type IncludeStatement = { loc: vscode.Location, dst: vscode.Uri };
+export type IncludeStatement = { loc: vscode.Location; dst: vscode.Uri };
 
 export type Defines = { [name: string]: Define };
-export type ProcessedFile = { lines: Line[], defines: Defines, includes: IncludeStatement[] };
+export type ProcessedFile = { lines: Line[]; defines: Defines; includes: IncludeStatement[] };
 
 export function toDefines(list: Define[]): Defines {
     const defines: Defines = {};
-    list.forEach(m => defines[m.name] = m);
+    list.forEach((m) => (defines[m.name] = m));
     return defines;
 }
 
 function replace(text: string, macros: MacroInstance[]) {
     // Replace values from back to front:
-    [...macros].sort((a, b) => b.start - a.start).forEach(m => {
-        text = text.slice(0, m.start) + m.insert + text.slice(m.start + m.raw.length);
-    });
+    [...macros]
+        .sort((a, b) => b.start - a.start)
+        .forEach((m) => {
+            text = text.slice(0, m.start) + m.insert + text.slice(m.start + m.raw.length);
+        });
 
     return text;
 }
 
-function parseArgs(text: string): {args: string[], raw: string} {
+function parseArgs(text: string): { args: string[]; raw: string } {
     const args = new Array<string>();
     const start = text.match(/^\s*\(/);
     if (!start) {
-        return {args, raw: ''};
+        return { args, raw: '' };
     }
     text = text.slice(start[0].length);
     let depth = 1;
@@ -53,7 +55,7 @@ function parseArgs(text: string): {args: string[], raw: string} {
             depth++;
         } else {
             if (depth === 1) {
-                args.push(arg.slice(0, arg.length-1).trim());
+                args.push(arg.slice(0, arg.length - 1).trim());
                 arg = '';
             }
 
@@ -66,7 +68,7 @@ function parseArgs(text: string): {args: string[], raw: string} {
     }
 
     if (depth) {
-        return {args: [], raw};
+        return { args: [], raw };
     }
 
     return { args, raw };
@@ -101,7 +103,7 @@ function findReplacements(text: string, defines: Defines, loc: vscode.Location):
             continue;
         }
 
-        const {args, raw: rawArgs} = parseArgs(text.slice(match.index + match[0].length));
+        const { args, raw: rawArgs } = parseArgs(text.slice(match.index + match[0].length));
         regex.lastIndex = match.index + match[0].length + rawArgs.length;
 
         /* Replace macro arguments:
@@ -126,40 +128,45 @@ function findReplacements(text: string, defines: Defines, loc: vscode.Location):
             }
             replacements[arg] = args[i];
         });
-        let insert = macro.value(loc).replace(/(?:,\s*##\s*(__VA_ARGS__)|(?<=##)\s*(\w+)\b|\b(\w+)\s*(?=##)|(?<!#)#\s*(\w+)\b|\b(\w+)\b)/g,
-            (original, vaArgs, concat1, concat2, stringified, raw) => {
-                let v = replacements[vaArgs];
-                if (v !== undefined) {
-                    // If the value is empty, we'll consume the comma:
-                    if (v) {
-                        return resolve(', ' + v, defines, loc);
+        let insert = macro
+            .value(loc)
+            .replace(
+                /(?:,\s*##\s*(__VA_ARGS__)|(?<=##)\s*(\w+)\b|\b(\w+)\s*(?=##)|(?<!#)#\s*(\w+)\b|\b(\w+)\b)/g,
+                (original, vaArgs, concat1, concat2, stringified, raw) => {
+                    let v = replacements[vaArgs];
+                    if (v !== undefined) {
+                        // If the value is empty, we'll consume the comma:
+                        if (v) {
+                            return resolve(', ' + v, defines, loc);
+                        }
+
+                        return resolve(v, defines, loc);
                     }
 
-                    return resolve(v, defines, loc);
+                    v = replacements[concat1] ?? replacements[concat2];
+                    if (v !== undefined) {
+                        return v;
+                    }
+
+                    v = replacements[stringified];
+                    if (v !== undefined) {
+                        return `"${v}"`;
+                    }
+
+                    v = replacements[raw];
+                    if (v !== undefined) {
+                        return resolve(v, defines, loc);
+                    }
+
+                    return original;
                 }
-
-                v = replacements[concat1] ?? replacements[concat2];
-                if (v !== undefined) {
-                    return v;
-                }
-
-                v = replacements[stringified];
-                if (v !== undefined) {
-                    return `"${v}"`;
-                }
-
-                v = replacements[raw];
-                if (v !== undefined) {
-                    return resolve(v, defines, loc);
-                }
-
-                return original;
-            });
-
+            );
 
         insert = insert.replace(/\s*##\s*/g, '');
 
-        macros.push(new MacroInstance(macro, match[0] + rawArgs, resolve(insert, defines, loc), match.index));
+        macros.push(
+            new MacroInstance(macro, match[0] + rawArgs, resolve(insert, defines, loc), match.index)
+        );
     }
 
     return macros;
@@ -168,7 +175,7 @@ function findReplacements(text: string, defines: Defines, loc: vscode.Location):
 export class Define {
     private _value: string;
     name: string;
-    args?: string[]
+    args?: string[];
     definition?: Line;
     undef?: Line;
 
@@ -250,12 +257,19 @@ function readLines(doc: vscode.TextDocument): Line[] | null {
     }
 }
 
-function evaluate(text: string, loc: vscode.Location, defines: Defines, diagSet: DiagnosticsSet): any {
+function evaluate(
+    text: string,
+    loc: vscode.Location,
+    defines: Defines,
+    diagSet: DiagnosticsSet
+): any {
     text = resolve(text, defines, loc);
     try {
         const diags = new Array<vscode.Diagnostic>();
         const result = evaluateExpr(text, loc.range.start, diags);
-        diags.forEach(d => diagSet.pushLoc(new vscode.Location(loc.uri, d.range), d.message, d.severity));
+        diags.forEach((d) =>
+            diagSet.pushLoc(new vscode.Location(loc.uri, d.range), d.message, d.severity)
+        );
         return result;
     } catch (e) {
         diagSet.pushLoc(loc, 'Evaluation failed: ' + e.toString(), vscode.DiagnosticSeverity.Error);
@@ -264,8 +278,17 @@ function evaluate(text: string, loc: vscode.Location, defines: Defines, diagSet:
     return 0;
 }
 
-export async function preprocess(doc: vscode.TextDocument, defines: Defines, includes: string[], diags: DiagnosticsSet): Promise<ProcessedFile> {
-    const pushLineDiag = (line: Line, message: string, severity: vscode.DiagnosticSeverity=vscode.DiagnosticSeverity.Warning) => {
+export async function preprocess(
+    doc: vscode.TextDocument,
+    defines: Defines,
+    includes: string[],
+    diags: DiagnosticsSet
+): Promise<ProcessedFile> {
+    const pushLineDiag = (
+        line: Line,
+        message: string,
+        severity: vscode.DiagnosticSeverity = vscode.DiagnosticSeverity.Warning
+    ) => {
         const diag = new vscode.Diagnostic(line.location.range, message, severity);
         diags.push(line.uri, diag);
         return diag;
@@ -275,9 +298,9 @@ export async function preprocess(doc: vscode.TextDocument, defines: Defines, inc
     const result: ProcessedFile = {
         lines: new Array<Line>(),
         defines: <Defines>{
-            '__FILE__': new FileMacro(path.dirname(doc.uri.fsPath)),
-            '__LINE__': new LineMacro(),
-            '__COUNTER__': new CounterMacro(),
+            __FILE__: new FileMacro(path.dirname(doc.uri.fsPath)),
+            __LINE__: new LineMacro(),
+            __COUNTER__: new CounterMacro(),
             ...defines,
         },
         includes: new Array<IncludeStatement>(),
@@ -285,11 +308,18 @@ export async function preprocess(doc: vscode.TextDocument, defines: Defines, inc
 
     let rawLines = readLines(doc);
     if (rawLines === null) {
-        diags.push(doc.uri, new vscode.Diagnostic(new vscode.Range(0, 0, 0, 0), 'Unable to read file', vscode.DiagnosticSeverity.Error));
+        diags.push(
+            doc.uri,
+            new vscode.Diagnostic(
+                new vscode.Range(0, 0, 0, 0),
+                'Unable to read file',
+                vscode.DiagnosticSeverity.Error
+            )
+        );
         return result;
     }
 
-    const scopes: {line: Line, condition: boolean}[] = [];
+    const scopes: { line: Line; condition: boolean }[] = [];
     const once = new Array<vscode.Uri>();
 
     while (rawLines.length) {
@@ -320,12 +350,12 @@ export async function preprocess(doc: vscode.TextDocument, defines: Defines, inc
                     text = text.slice(0, text.length - 1) + ' ' + rawLines.splice(0, 1)[0].text;
                 }
 
-                let value =  text.match(/^\s*#\s*(\w+)\s*(.*)/)[2].trim();
+                let value = text.match(/^\s*#\s*(\w+)\s*(.*)/)[2].trim();
 
                 if (directive[1] === 'if') {
                     if (!value) {
                         pushLineDiag(line, 'Missing condition');
-                        scopes.push({line: line, condition: false});
+                        scopes.push({ line: line, condition: false });
                         continue;
                     }
 
@@ -333,14 +363,17 @@ export async function preprocess(doc: vscode.TextDocument, defines: Defines, inc
                         return result.defines[define]?.isDefined ? '1' : '0';
                     });
 
-                    scopes.push({line: line, condition: !!evaluate(value, line.location, result.defines, diags)});
+                    scopes.push({
+                        line: line,
+                        condition: !!evaluate(value, line.location, result.defines, diags),
+                    });
                     continue;
                 }
 
                 if (directive[1] === 'ifdef') {
                     if (!value) {
                         pushLineDiag(line, 'Missing condition');
-                        scopes.push({line: line, condition: false});
+                        scopes.push({ line: line, condition: false });
                         continue;
                     }
 
@@ -351,7 +384,7 @@ export async function preprocess(doc: vscode.TextDocument, defines: Defines, inc
                 if (directive[1] === 'ifndef') {
                     if (!value) {
                         pushLineDiag(line, 'Missing condition');
-                        scopes.push({line: line, condition: false});
+                        scopes.push({ line: line, condition: false });
                         continue;
                     }
 
@@ -370,7 +403,6 @@ export async function preprocess(doc: vscode.TextDocument, defines: Defines, inc
                 }
 
                 if (directive[1] === 'elif') {
-
                     if (!scopes.length) {
                         pushLineDiag(line, `Unexpected #elsif`);
                         continue;
@@ -378,7 +410,7 @@ export async function preprocess(doc: vscode.TextDocument, defines: Defines, inc
 
                     if (!value) {
                         pushLineDiag(line, 'Missing condition');
-                        scopes.push({line: line, condition: false});
+                        scopes.push({ line: line, condition: false });
                         continue;
                     }
 
@@ -388,11 +420,19 @@ export async function preprocess(doc: vscode.TextDocument, defines: Defines, inc
                     }
 
                     let condition = resolve(value, result.defines, line.location);
-                    condition = condition.replace(new RegExp(`defined\\((.*?)\\)`, 'g'), (t, define) => {
-                        return result.defines[define]?.isDefined ? '1' : '0';
-                    });
+                    condition = condition.replace(
+                        new RegExp(`defined\\((.*?)\\)`, 'g'),
+                        (t, define) => {
+                            return result.defines[define]?.isDefined ? '1' : '0';
+                        }
+                    );
 
-                    scopes[scopes.length - 1].condition = evaluate(condition, line.location, result.defines, diags);
+                    scopes[scopes.length - 1].condition = evaluate(
+                        condition,
+                        line.location,
+                        result.defines,
+                        diags
+                    );
                     continue;
                 }
 
@@ -407,7 +447,7 @@ export async function preprocess(doc: vscode.TextDocument, defines: Defines, inc
                 }
 
                 // Skip everything else inside a disabled scope:
-                if (!scopes.every(c => c.condition)) {
+                if (!scopes.every((c) => c.condition)) {
                     continue;
                 }
 
@@ -424,7 +464,14 @@ export async function preprocess(doc: vscode.TextDocument, defines: Defines, inc
                         continue;
                     }
 
-                    const macro = existing ?? new Define(define[1], define[3], line, define[2]?.split(',').map(a => a.trim()));
+                    const macro =
+                        existing ??
+                        new Define(
+                            define[1],
+                            define[3],
+                            line,
+                            define[2]?.split(',').map((a) => a.trim())
+                        );
                     macro.undef = undefined;
                     result.defines[macro.name] = macro;
                     continue;
@@ -449,8 +496,10 @@ export async function preprocess(doc: vscode.TextDocument, defines: Defines, inc
 
                 if (directive[1] === 'pragma') {
                     if (value === 'once') {
-                        if (once.some(uri => uri.fsPath === line.uri.fsPath)) {
-                            const lines = rawLines.findIndex(l => l.uri.fsPath !== line.uri.fsPath);
+                        if (once.some((uri) => uri.fsPath === line.uri.fsPath)) {
+                            const lines = rawLines.findIndex(
+                                (l) => l.uri.fsPath !== line.uri.fsPath
+                            );
                             if (lines > 0) {
                                 rawLines.splice(0, lines);
                             }
@@ -471,16 +520,28 @@ export async function preprocess(doc: vscode.TextDocument, defines: Defines, inc
                         continue;
                     }
 
-                    const file = [path.resolve(path.dirname(line.uri.fsPath)), ...includes].map(dir => path.resolve(dir, include)).find(path => fs.existsSync(path));
+                    const file = [path.resolve(path.dirname(line.uri.fsPath)), ...includes]
+                        .map((dir) => path.resolve(dir, include))
+                        .find((path) => fs.existsSync(path));
                     if (!file) {
-                        pushLineDiag(line, `No such file: ${include}`, vscode.DiagnosticSeverity.Warning);
+                        pushLineDiag(
+                            line,
+                            `No such file: ${include}`,
+                            vscode.DiagnosticSeverity.Warning
+                        );
                         continue;
                     }
 
                     const uri = vscode.Uri.file(file);
 
                     const start = text.indexOf(value);
-                    result.includes.push({ loc: new vscode.Location(line.uri, new vscode.Range(line.number, start, line.number, start + value.length)), dst: uri });
+                    result.includes.push({
+                        loc: new vscode.Location(
+                            line.uri,
+                            new vscode.Range(line.number, start, line.number, start + value.length)
+                        ),
+                        dst: uri,
+                    });
 
                     // inject the included file's lines. They will be the next to be processed:
                     const doc = await vscode.workspace.openTextDocument(uri);
@@ -503,17 +564,24 @@ export async function preprocess(doc: vscode.TextDocument, defines: Defines, inc
                 continue;
             }
 
-            if (!scopes.every(c => c.condition)) {
+            if (!scopes.every((c) => c.condition)) {
                 continue;
             }
 
-            result.lines.push(new Line(text, line.number, line.uri, findReplacements(text, result.defines, line.location)));
+            result.lines.push(
+                new Line(
+                    text,
+                    line.number,
+                    line.uri,
+                    findReplacements(text, result.defines, line.location)
+                )
+            );
         } catch (e) {
             pushLineDiag(line, 'Preprocessor crashed: ' + e);
         }
     }
 
-    scopes.forEach(s => pushLineDiag(s.line, 'Unterminated scope'));
+    scopes.forEach((s) => pushLineDiag(s.line, 'Unterminated scope'));
 
     const procTime = process.hrtime(timeStart);
     // console.log(`Preprocessed ${doc.uri.fsPath} in ${(procTime[0] * 1e9 + procTime[1]) / 1000000} ms`);
@@ -558,16 +626,21 @@ export class Line {
      * @param loc Location in processed text
      * @param earliest Whether to get the earliest matching position
      */
-    rawPos(loc: vscode.Position | vscode.Range | number, earliest=true) {
+    rawPos(loc: vscode.Position | vscode.Range | number, earliest = true) {
         if (loc instanceof vscode.Position) {
             return new vscode.Position(loc.line, this.rawPos(loc.character, earliest));
         }
 
         if (loc instanceof vscode.Range) {
-            return new vscode.Range(loc.start.line, this.rawPos(loc.start, true), loc.end.line, this.rawPos(loc.end, false));
+            return new vscode.Range(
+                loc.start.line,
+                this.rawPos(loc.start, true),
+                loc.end.line,
+                this.rawPos(loc.end, false)
+            );
         }
 
-        this.macros.find(m => {
+        this.macros.find((m) => {
             loc = <number>loc; // Just tricking typescript :)
             if (m.start > loc) {
                 return true; // As macros are sorted by their start pos, there's no need to go through the rest
@@ -597,14 +670,17 @@ export class Line {
     }
 
     macro(pos: vscode.Position) {
-        return this.macros.find(m => m.contains(pos.character));
+        return this.macros.find((m) => m.contains(pos.character));
     }
 
-    constructor(raw: string, number: number, uri: vscode.Uri, macros: MacroInstance[]=[]) {
+    constructor(raw: string, number: number, uri: vscode.Uri, macros: MacroInstance[] = []) {
         this.raw = raw;
         this.number = number;
         this.macros = macros;
-        this.location = new vscode.Location(uri, new vscode.Range(this.number, 0, this.number, this.raw.length));
+        this.location = new vscode.Location(
+            uri,
+            new vscode.Range(this.number, 0, this.number, this.raw.length)
+        );
         this.text = replace(raw, this.macros);
     }
 }

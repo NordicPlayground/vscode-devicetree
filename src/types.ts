@@ -44,17 +44,15 @@ function filterProperties(props: PropertyTypeMap, filter: PropertyFilter): strin
 
     return Object.keys(props).filter(
         (name) =>
-            (
-                (!filter.allow || filter.allow.includes(name)) &&
-                (!filter.block || !filter.block.includes(name))
-            )
+            (!filter.allow || filter.allow.includes(name)) &&
+            (!filter.block || !filter.block.includes(name))
     );
 }
 
 export class NodeType {
     private _properties: PropertyTypeMap;
     private _include: TypeInclude[];
-    private _cells: {[cell: string]: string[]};
+    private _cells: { [cell: string]: string[] };
     private _bus: string;
     private _onBus: string;
     private _isChild = false;
@@ -69,18 +67,20 @@ export class NodeType {
         this._onBus = tree['on-bus'];
         this._bus = tree['bus'];
         this._cells = {};
-        Object.keys(tree).filter(k => k.endsWith('-cells')).forEach(k => {
-            this._cells[k.slice(0, k.length - '-cells'.length)] = tree[k];
-        });
+        Object.keys(tree)
+            .filter((k) => k.endsWith('-cells'))
+            .forEach((k) => {
+                this._cells[k.slice(0, k.length - '-cells'.length)] = tree[k];
+            });
         this.compatible = tree.compatible ?? tree.name;
         this.description = tree.description;
         this.filename = filename;
 
-        const childIncludes = new Array<{[key: string]: any}>();
+        const childIncludes = new Array<{ [key: string]: any }>();
 
         // includes may either be an array of strings or an array of objects with "include"
-        const processInclude = (i: string | {[key: string]: any}): TypeInclude => {
-            if (typeof(i) === 'string') {
+        const processInclude = (i: string | { [key: string]: any }): TypeInclude => {
+            if (typeof i === 'string') {
                 return {
                     // remove .yaml file extension:
                     name: i.split('.')[0],
@@ -135,11 +135,11 @@ export class NodeType {
     }
 
     private get inclusions(): NodeType[] {
-        return this._include.flatMap(i => this.loader?.get(i.name) ?? []);
+        return this._include.flatMap((i) => this.loader?.get(i.name) ?? []);
     }
 
     includes(name: string) {
-        return this.inclusions.find(i => i.name === name);
+        return this.inclusions.find((i) => i.name === name);
     }
 
     cells(type: string): string[] {
@@ -147,7 +147,7 @@ export class NodeType {
             type = type.slice(0, type.length - '-cells'.length);
         }
 
-        return this._cells[type] ?? this.inclusions.find(i => i.cells(type))?.cells(type);
+        return this._cells[type] ?? this.inclusions.find((i) => i.cells(type))?.cells(type);
     }
 
     /// Whether this type matches the given type string, either directly or through inclusions
@@ -156,19 +156,19 @@ export class NodeType {
     }
 
     get bus(): string {
-        return this._bus ?? this.inclusions.find(i => i.bus)?.bus;
+        return this._bus ?? this.inclusions.find((i) => i.bus)?.bus;
     }
 
     get onBus(): string {
-        return this._onBus ?? this.inclusions.find(i => i.onBus)?.onBus;
+        return this._onBus ?? this.inclusions.find((i) => i.onBus)?.onBus;
     }
 
     private get propMap(): PropertyTypeMap {
         const props = { ...this._properties };
 
         // import properties from included bindings:
-        this._include.forEach(spec => {
-            this.loader?.get(spec.name).forEach(type => {
+        this._include.forEach((spec) => {
+            this.loader?.get(spec.name).forEach((type) => {
                 if (this._isChild) {
                     // If this is a child binding, we should be including bindings from the
                     // child binding of the included type. Our parent transferred our include
@@ -219,25 +219,25 @@ const standardProperties: PropertyTypeMap = {
         type: 'int',
         description: `The #size-cells property defines the number of u32 cells used to encode the size field in a child node’s reg property.\n\nThe #address-cells and #size-cells properties are not inherited from ancestors in the devicetree. They shall be explicitly defined.\n\nA DTSpec-compliant boot program shall supply #address-cells and #size-cells on all nodes that have children. If missing, a client program should assume a default value of 2 for #address-cells, and a value of 1 for #size-cells`,
     },
-    'model': {
+    model: {
         name: 'model',
         required: false,
         type: 'string',
         description: `The model property value is a string that specifies the manufacturer’s model number of the device. The recommended format is: "manufacturer,model", where manufacturer is a string describing the name of the manufacturer (such as a stock ticker symbol), and model specifies the model number.`,
     },
-    'compatible': {
+    compatible: {
         name: 'compatible',
         required: false,
         type: 'string-array',
         description: `The compatible property value consists of one or more strings that define the specific programming model for the device. This list of strings should be used by a client program for device driver selection. The property value consists of a concatenated list of null terminated strings, from most specific to most general. They allow a device to express its compatibility with a family of similar devices, potentially allowing a single device driver to match against several devices.\n\nThe recommended format is "manufacturer,model", where manufacturer is a string describing the name of the manufacturer (such as a stock ticker symbol), and model the model number.`,
     },
-    'phandle': {
+    phandle: {
         name: 'phandle',
         type: 'int',
         required: false,
-        description: `The phandle property specifies a numerical identifier for a node that is unique within the devicetree. The phandle property value is used by other nodes that need to refer to the node associated with the property.`
+        description: `The phandle property specifies a numerical identifier for a node that is unique within the devicetree. The phandle property value is used by other nodes that need to refer to the node associated with the property.`,
     },
-    'status': {
+    status: {
         name: 'status',
         type: 'string',
         required: false,
@@ -248,109 +248,119 @@ const standardProperties: PropertyTypeMap = {
         name: 'clock-frequency',
         type: 'int',
         required: false,
-        description: 'Specifies the frequency of a clock in Hz.'
+        description: 'Specifies the frequency of a clock in Hz.',
     },
-    'clocks': {
+    clocks: {
         name: 'clocks',
         type: 'phandle-array',
         required: false,
-        description: 'Clock input to the device.'
+        description: 'Clock input to the device.',
     },
-    'ranges': {
+    ranges: {
         name: 'ranges',
         type: ['boolean', 'array'],
-        description: 'The ranges property provides a means of defining a mapping or translation between the address space of the\n' +
-        'bus (the child address space) and the address space of the bus node’s parent (the parent address space).\n' +
-        'The format of the value of the ranges property is an arbitrary number of triplets of (child-bus-address,\n' +
-        'parentbus-address, length)\n' +
-        '\n' +
-        '- The child-bus-address is a physical address within the child bus’ address space. The number of cells to\n' +
-        'represent the address is bus dependent and can be determined from the #address-cells of this node (the\n' +
-        'node in which the ranges property appears).\n' +
-        '- The parent-bus-address is a physical address within the parent bus’ address space. The number of cells\n' +
-        'to represent the parent address is bus dependent and can be determined from the #address-cells property\n' +
-        'of the node that defines the parent’s address space.\n' +
-        '- The length specifies the size of the range in the child’s address space. The number of cells to represent\n' +
-        'the size can be determined from the #size-cells of this node (the node in which the ranges property\n' +
-        'appears).\n' +
-        '\n' +
-        'If the property is defined with an <empty> value, it specifies that the parent and child address space is\n' +
-        'identical, and no address translation is required.\n' +
-        'If the property is not present in a bus node, it is assumed that no mapping exists between children of the node\n' +
-        'and the parent address space.\n',
-        required: false
+        description:
+            'The ranges property provides a means of defining a mapping or translation between the address space of the\n' +
+            'bus (the child address space) and the address space of the bus node’s parent (the parent address space).\n' +
+            'The format of the value of the ranges property is an arbitrary number of triplets of (child-bus-address,\n' +
+            'parentbus-address, length)\n' +
+            '\n' +
+            '- The child-bus-address is a physical address within the child bus’ address space. The number of cells to\n' +
+            'represent the address is bus dependent and can be determined from the #address-cells of this node (the\n' +
+            'node in which the ranges property appears).\n' +
+            '- The parent-bus-address is a physical address within the parent bus’ address space. The number of cells\n' +
+            'to represent the parent address is bus dependent and can be determined from the #address-cells property\n' +
+            'of the node that defines the parent’s address space.\n' +
+            '- The length specifies the size of the range in the child’s address space. The number of cells to represent\n' +
+            'the size can be determined from the #size-cells of this node (the node in which the ranges property\n' +
+            'appears).\n' +
+            '\n' +
+            'If the property is defined with an <empty> value, it specifies that the parent and child address space is\n' +
+            'identical, and no address translation is required.\n' +
+            'If the property is not present in a bus node, it is assumed that no mapping exists between children of the node\n' +
+            'and the parent address space.\n',
+        required: false,
     },
     'reg-shift': {
         name: 'reg-shift',
         type: 'int',
         required: false,
-        description: 'The reg-shift property provides a mechanism to represent devices that are identical in most\n' +
-        'respects except for the number of bytes between registers. The reg-shift property specifies in bytes\n' +
-        'how far the discrete device registers are separated from each other. The individual register location\n' +
-        'is calculated by using following formula: “registers address” << reg-shift. If unspecified, the default\n' +
-        'value is 0.\n' +
-        'For example, in a system where 16540 UART registers are located at addresses 0x0, 0x4, 0x8, 0xC,\n' +
-        '0x10, 0x14, 0x18, and 0x1C, a reg-shift = 2 property would be used to specify register\n' +
-        'locations.`\n',
+        description:
+            'The reg-shift property provides a mechanism to represent devices that are identical in most\n' +
+            'respects except for the number of bytes between registers. The reg-shift property specifies in bytes\n' +
+            'how far the discrete device registers are separated from each other. The individual register location\n' +
+            'is calculated by using following formula: “registers address” << reg-shift. If unspecified, the default\n' +
+            'value is 0.\n' +
+            'For example, in a system where 16540 UART registers are located at addresses 0x0, 0x4, 0x8, 0xC,\n' +
+            '0x10, 0x14, 0x18, and 0x1C, a reg-shift = 2 property would be used to specify register\n' +
+            'locations.`\n',
     },
-    'label': {
+    label: {
         name: 'label',
         type: 'string',
         required: false,
-        description: 'The label property defines a human readable string describing a device. The binding for a given device specifies the exact meaning of the property for that device.'
+        description:
+            'The label property defines a human readable string describing a device. The binding for a given device specifies the exact meaning of the property for that device.',
     },
-    'reg': {
+    reg: {
         name: 'reg',
         type: 'array',
         required: false,
-        description: 'The reg property describes the address of the device’s resources within the address space defined by its parent\n' +
-        'bus. Most commonly this means the offsets and lengths of memory-mapped IO register blocks, but may have\n' +
-        'a different meaning on some bus types. Addresses in the address space defined by the root node are CPU real\n' +
-        'addresses.\n' +
-        '\n' +
-        'The value is a prop-encoded-array, composed of an arbitrary number of pairs of address and length,\n' +
-        'address length. The number of u32 cells required to specify the address and length are bus-specific\n' +
-        'and are specified by the #address-cells and #size-cells properties in the parent of the device node. If the parent\n' +
-        'node specifies a value of 0 for #size-cells, the length field in the value of reg shall be omitted.\n',
-    }
+        description:
+            'The reg property describes the address of the device’s resources within the address space defined by its parent\n' +
+            'bus. Most commonly this means the offsets and lengths of memory-mapped IO register blocks, but may have\n' +
+            'a different meaning on some bus types. Addresses in the address space defined by the root node are CPU real\n' +
+            'addresses.\n' +
+            '\n' +
+            'The value is a prop-encoded-array, composed of an arbitrary number of pairs of address and length,\n' +
+            'address length. The number of u32 cells required to specify the address and length are bus-specific\n' +
+            'and are specified by the #address-cells and #size-cells properties in the parent of the device node. If the parent\n' +
+            'node specifies a value of 0 for #size-cells, the length field in the value of reg shall be omitted.\n',
+    },
 };
 
 const standardTypes = [
     new NodeType({
         name: '/',
-        description: 'The devicetree has a single root node of which all other device nodes are descendants. The full path to the root node is /.',
+        description:
+            'The devicetree has a single root node of which all other device nodes are descendants. The full path to the root node is /.',
         properties: {
             '#address-cells': {
                 required: true,
-                description: 'Specifies the number of <u32> cells to represent the address in the reg property in children of root',
+                description:
+                    'Specifies the number of <u32> cells to represent the address in the reg property in children of root',
             },
             '#size-cells': {
                 required: true,
-                description: 'Specifies the number of <u32> cells to represent the size in the reg property in children of root.',
+                description:
+                    'Specifies the number of <u32> cells to represent the size in the reg property in children of root.',
             },
-            'model': {
+            model: {
                 required: true,
-                description: 'Specifies a string that uniquely identifies the model of the system board. The recommended format is `"manufacturer,model-number".`',
+                description:
+                    'Specifies a string that uniquely identifies the model of the system board. The recommended format is `"manufacturer,model-number".`',
             },
-            'compatible': {
+            compatible: {
                 required: true,
-                description: 'Specifies a list of platform architectures with which this platform is compatible. This property can be used by operating systems in selecting platform specific code. The recommended form of the property value is:\n"manufacturer,model"\nFor example:\ncompatible = "fsl,mpc8572ds"',
+                description:
+                    'Specifies a list of platform architectures with which this platform is compatible. This property can be used by operating systems in selecting platform specific code. The recommended form of the property value is:\n"manufacturer,model"\nFor example:\ncompatible = "fsl,mpc8572ds"',
             },
         },
-        title: 'Root node'
+        title: 'Root node',
     }),
     new AbstractNodeType({
         name: 'simple-bus',
         title: 'Internal I/O bus',
-        description: 'System-on-a-chip processors may have an internal I/O bus that cannot be probed for devices. The devices on the bus can be accessed directly without additional configuration required. This type of bus is represented as a node with a compatible value of “simple-bus”.',
+        description:
+            'System-on-a-chip processors may have an internal I/O bus that cannot be probed for devices. The devices on the bus can be accessed directly without additional configuration required. This type of bus is represented as a node with a compatible value of “simple-bus”.',
         properties: {
-            'compatible': {
+            compatible: {
                 required: true,
             },
-            'ranges': {
+            ranges: {
                 required: true,
             },
-        }
+        },
     }),
     new NodeType({
         name: '/cpus/',
@@ -362,37 +372,38 @@ const standardTypes = [
             },
             '#size-cells': {
                 required: true,
-            }
-        }
+            },
+        },
     }),
     new NodeType({
         name: '/cpus/cpu',
         title: 'CPU instance',
-        description: 'A cpu node represents a hardware execution block that is sufficiently independent that it is capable of running an operating\n' +
-        'system without interfering with other CPUs possibly running other operating systems.\n' +
-        'Hardware threads that share an MMU would generally be represented under one cpu node. If other more complex CPU\n' +
-        'topographies are designed, the binding for the CPU must describe the topography (e.g. threads that don’t share an MMU).\n' +
-        'CPUs and threads are numbered through a unified number-space that should match as closely as possible the interrupt\n' +
-        'controller’s numbering of CPUs/threads.\n' +
-        '\n' +
-        'Properties that have identical values across cpu nodes may be placed in the /cpus node instead. A client program must\n' +
-        'first examine a specific cpu node, but if an expected property is not found then it should look at the parent /cpus node.\n' +
-        'This results in a less verbose representation of properties which are identical across all CPUs.\n' +
-        'The node name for every CPU node should be cpu.`\n',
+        description:
+            'A cpu node represents a hardware execution block that is sufficiently independent that it is capable of running an operating\n' +
+            'system without interfering with other CPUs possibly running other operating systems.\n' +
+            'Hardware threads that share an MMU would generally be represented under one cpu node. If other more complex CPU\n' +
+            'topographies are designed, the binding for the CPU must describe the topography (e.g. threads that don’t share an MMU).\n' +
+            'CPUs and threads are numbered through a unified number-space that should match as closely as possible the interrupt\n' +
+            'controller’s numbering of CPUs/threads.\n' +
+            '\n' +
+            'Properties that have identical values across cpu nodes may be placed in the /cpus node instead. A client program must\n' +
+            'first examine a specific cpu node, but if an expected property is not found then it should look at the parent /cpus node.\n' +
+            'This results in a less verbose representation of properties which are identical across all CPUs.\n' +
+            'The node name for every CPU node should be cpu.`\n',
         properties: {
-            'device_type': {
+            device_type: {
                 name: 'device_type',
                 type: 'string',
                 const: 'cpu',
                 description: `Value shall be "cpu"`,
                 required: true,
             },
-            'reg': {
+            reg: {
                 type: ['int', 'array'],
                 description: `The value of reg is a <prop-encoded-array> that defines a unique CPU/thread id for the CPU/threads represented by the CPU node. If a CPU supports more than one thread (i.e. multiple streams of execution) the reg property is an array with 1 element per thread. The #address-cells on the /cpus node specifies how many cells each element of the array takes. Software can determine the number of threads by dividing the size of reg by the parent node’s #address-cells. If a CPU/thread can be the target of an external interrupt the reg property value must be a unique CPU/thread id that is addressable by the interrupt controller. If a CPU/thread cannot be the target of an external interrupt, then reg must be unique and out of bounds of the range addressed by the interrupt controller. If a CPU/thread’s PIR (pending interrupt register) is modifiable, a client program should modify PIR to match the reg property value. If PIR cannot be modified and the PIR value is distinct from the interrupt controller number space, the CPUs binding may define a binding-specific representation of PIR values if desired.`,
-                required: true
-            }
-        }
+                required: true,
+            },
+        },
     }),
     new NodeType({
         name: '/chosen/',
@@ -403,57 +414,58 @@ const standardTypes = [
                 name: 'zephyr,flash',
                 type: 'phandle',
                 required: false,
-                description: 'Generates symbol CONFIG_FLASH'
+                description: 'Generates symbol CONFIG_FLASH',
             },
             'zephyr,sram': {
                 name: 'zephyr,sram',
                 type: 'phandle',
                 required: false,
-                description: 'Generates symbol CONFIG_SRAM_SIZE/CONFIG_SRAM_BASE_ADDRESS (via DT_SRAM_SIZE/DT_SRAM_BASE_ADDRESS)'
+                description:
+                    'Generates symbol CONFIG_SRAM_SIZE/CONFIG_SRAM_BASE_ADDRESS (via DT_SRAM_SIZE/DT_SRAM_BASE_ADDRESS)',
             },
             'zephyr,ccm': {
                 name: 'zephyr,ccm',
                 type: 'phandle',
                 required: false,
-                description: 'Generates symbol DT_CCM'
+                description: 'Generates symbol DT_CCM',
             },
             'zephyr,console': {
                 name: 'zephyr,console',
                 type: 'phandle',
                 required: false,
-                description: 'Generates symbol DT_UART_CONSOLE_ON_DEV_NAME'
+                description: 'Generates symbol DT_UART_CONSOLE_ON_DEV_NAME',
             },
             'zephyr,shell-uart': {
                 name: 'zephyr,shell-uart',
                 type: 'phandle',
                 required: false,
-                description: 'Generates symbol DT_UART_SHELL_ON_DEV_NAME'
+                description: 'Generates symbol DT_UART_SHELL_ON_DEV_NAME',
             },
             'zephyr,bt-uart': {
                 name: 'zephyr,bt-uart',
                 type: 'phandle',
                 required: false,
-                description: 'Generates symbol DT_BT_UART_ON_DEV_NAME'
+                description: 'Generates symbol DT_BT_UART_ON_DEV_NAME',
             },
             'zephyr,uart-pipe': {
                 name: 'zephyr,uart-pipe',
                 type: 'phandle',
                 required: false,
-                description: 'Generates symbol DT_UART_PIPE_ON_DEV_NAME'
+                description: 'Generates symbol DT_UART_PIPE_ON_DEV_NAME',
             },
             'zephyr,bt-mon-uart': {
                 name: 'zephyr,bt-mon-uart',
                 type: 'phandle',
                 required: false,
-                description: 'Generates symbol DT_BT_MONITOR_ON_DEV_NAME'
+                description: 'Generates symbol DT_BT_MONITOR_ON_DEV_NAME',
             },
             'zephyr,uart-mcumgr': {
                 name: 'zephyr,uart-mcumgr',
                 type: 'phandle',
                 required: false,
-                description: 'Generates symbol DT_UART_MCUMGR_ON_DEV_NAME'
+                description: 'Generates symbol DT_UART_MCUMGR_ON_DEV_NAME',
             },
-        }
+        },
     }),
     new NodeType({
         name: '/aliases/',
@@ -475,13 +487,19 @@ export class TypeLoader {
 
     constructor() {
         this.diags = vscode.languages.createDiagnosticCollection('DeviceTree types');
-        this.baseType = new AbstractNodeType({ name: '<unknown>', properties: { ...standardProperties } });
+        this.baseType = new AbstractNodeType({
+            name: '<unknown>',
+            properties: { ...standardProperties },
+        });
         this.types = {};
-        standardTypes.forEach(type => this.addType(type));
+        standardTypes.forEach((type) => this.addType(type));
     }
 
     async activate(ctx: vscode.ExtensionContext) {
-        const setFolders = () => this.setFolders(zephyr.modules.map(module => vscode.Uri.joinPath(module, 'dts', 'bindings')));
+        const setFolders = () =>
+            this.setFolders(
+                zephyr.modules.map((module) => vscode.Uri.joinPath(module, 'dts', 'bindings'))
+            );
 
         await setFolders();
         ctx.subscriptions.push(zephyr.onChange(setFolders));
@@ -498,7 +516,7 @@ export class TypeLoader {
     }
 
     async addFolder(folder: vscode.Uri) {
-        if (this.folders.some(existing => existing.fsPath === folder.fsPath)) {
+        if (this.folders.some((existing) => existing.fsPath === folder.fsPath)) {
             return;
         }
 
@@ -506,14 +524,19 @@ export class TypeLoader {
         const g = glob.sync('**/*.yaml', { cwd: folder.fsPath, ignore: 'test/*' });
         return Promise.all(
             g.map(
-                file =>
-                    new Promise<void>(resolve => {
+                (file) =>
+                    new Promise<void>((resolve) => {
                         const filePath = path.resolve(folder.fsPath, file);
                         readFile(filePath, 'utf-8', (err, out) => {
                             if (!err) {
                                 try {
                                     const tree = yaml.load(out, { json: true });
-                                    this.addType(new NodeType({ name: path.basename(file, '.yaml'), ...tree }, filePath));
+                                    this.addType(
+                                        new NodeType(
+                                            { name: path.basename(file, '.yaml'), ...tree },
+                                            filePath
+                                        )
+                                    );
                                 } catch (e) {
                                     const pos =
                                         'mark' in e
@@ -544,7 +567,9 @@ export class TypeLoader {
         const newTypes = {};
         Object.entries(this.types).forEach(([name, entries]) => {
             const newEntries = entries.filter(
-                entry => !entry.filename || !uris.every(uri => path.relative(uri.fsPath, entry.filename).startsWith('..'))
+                (entry) =>
+                    !entry.filename ||
+                    !uris.every((uri) => path.relative(uri.fsPath, entry.filename).startsWith('..'))
             );
             if (newEntries.length > 0) {
                 newTypes[name] = newEntries;
@@ -555,10 +580,14 @@ export class TypeLoader {
     }
 
     async setFolders(uris: vscode.Uri[]) {
-        const removedFolders = this.folders.filter(folder => !uris.some(uri => uri.fsPath === folder.fsPath));
+        const removedFolders = this.folders.filter(
+            (folder) => !uris.some((uri) => uri.fsPath === folder.fsPath)
+        );
         this.removeFolders(removedFolders);
-        const addedFolders = uris.filter(uri => !this.folders.some(folder => uri.fsPath === folder.fsPath));
-        await Promise.all(addedFolders.map(uri => this.addFolder(uri)));
+        const addedFolders = uris.filter(
+            (uri) => !this.folders.some((folder) => uri.fsPath === folder.fsPath)
+        );
+        await Promise.all(addedFolders.map((uri) => this.addFolder(uri)));
     }
 
     get(name: string): NodeType[] {
@@ -575,7 +604,7 @@ export class TypeLoader {
         const getBaseType = () => {
             const candidates = [node.path];
 
-            const compatibleProp = props.find(p => p.name === 'compatible');
+            const compatibleProp = props.find((p) => p.name === 'compatible');
             if (compatibleProp) {
                 const compatible = compatibleProp.stringArray;
                 if (compatible) {
@@ -591,7 +620,7 @@ export class TypeLoader {
             }
 
             let types: NodeType[];
-            if (candidates.some(c => (types = this.get(c)).length)) {
+            if (candidates.some((c) => (types = this.get(c)).length)) {
                 return types;
             }
 
@@ -609,7 +638,7 @@ export class TypeLoader {
         }
 
         if (node.parent?.type && types.length > 1) {
-            return types.find(t => node.parent.type.bus === t.onBus) ?? types[0];
+            return types.find((t) => node.parent.type.bus === t.onBus) ?? types[0];
         }
 
         return types[0];

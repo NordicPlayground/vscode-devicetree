@@ -45,7 +45,7 @@ export class StringValue extends PropertyValue {
         }
     }
 
-    toString(raw=false) {
+    toString(raw = false) {
         if (raw) {
             return this.val;
         }
@@ -61,7 +61,7 @@ export class BoolValue extends PropertyValue {
         super(true, loc);
     }
 
-    toString(raw=false): string {
+    toString(raw = false): string {
         return this.val.toString();
     }
 }
@@ -80,7 +80,10 @@ export class IntValue extends PropertyValue {
         if (number) {
             const loc = state.location();
             // If the raw value is a macro, we'll show that when printing a human readable version:
-            if (state.getLine(loc.uri, loc.range.start)?.macro(loc.range.start)?.insert !== number[0]) {
+            if (
+                state.getLine(loc.uri, loc.range.start)?.macro(loc.range.start)?.insert !==
+                number[0]
+            ) {
                 return new IntValue(number[0], parseInt(number[1]), loc);
             }
 
@@ -93,7 +96,7 @@ export class IntValue extends PropertyValue {
         return new IntValue(newValue.toString(), newValue, this.loc);
     }
 
-    toString(raw=false): string {
+    toString(raw = false): string {
         if (raw) {
             return this.raw;
         }
@@ -113,7 +116,9 @@ export class Expression extends IntValue {
         let level = 1;
         let text = '(';
         while (level !== 0) {
-            m = state.match(/^\s*(?:(?:<<|>>|&&|\|\||[!=<>]=|[|&~^<>!=+/*-]|\s*|0x[\da-fA-F]+|[\d.]+|'.')\s*)*([()])/);
+            m = state.match(
+                /^\s*(?:(?:<<|>>|&&|\|\||[!=<>]=|[|&~^<>!=+/*-]|\s*|0x[\da-fA-F]+|[\d.]+|'.')\s*)*([()])/
+            );
             if (!m) {
                 state.pushDiag(`Unterminated expression`, vscode.DiagnosticSeverity.Error);
                 break;
@@ -131,9 +136,14 @@ export class Expression extends IntValue {
 
         try {
             // JS doesn't support single-character arithmetic, so we need to convert those to numbers first:
-            const value = eval(text.replace(/'(.)'/g, (_, char: string) => char.charCodeAt(0).toString()));
+            const value = eval(
+                text.replace(/'(.)'/g, (_, char: string) => char.charCodeAt(0).toString())
+            );
             // If the raw value is a macro, we'll show that when printing a human readable version:
-            const macroExpansion = state.getLine(loc.uri, loc.range.start)?.macro(loc.range.start)?.insert.trim();
+            const macroExpansion = state
+                .getLine(loc.uri, loc.range.start)
+                ?.macro(loc.range.start)
+                ?.insert.trim();
             if (macroExpansion && macroExpansion !== text.trim()) {
                 return new Expression(text, value, loc);
             }
@@ -145,7 +155,7 @@ export class Expression extends IntValue {
         }
     }
 
-    toString(raw=true) {
+    toString(raw = true) {
         if (raw) {
             return this.raw;
         }
@@ -172,7 +182,7 @@ export class ArrayValue extends PropertyValue {
 
         while (state.skipWhitespace() && !state.match(/^>/)) {
             let match: PHandle | IntValue | Expression | undefined;
-            elems.find(e => match = e.match(state));
+            elems.find((e) => (match = e.match(state)));
             if (match) {
                 values.push(match);
                 continue;
@@ -180,7 +190,10 @@ export class ArrayValue extends PropertyValue {
 
             const unbracedExpression = state.match(/^([+*/|!^-]|&&|<<|>>|==)/);
             if (unbracedExpression) {
-                state.pushDiag(`Expression without a surrounding parenthesis`, vscode.DiagnosticSeverity.Error);
+                state.pushDiag(
+                    `Expression without a surrounding parenthesis`,
+                    vscode.DiagnosticSeverity.Error
+                );
                 continue;
             }
 
@@ -195,7 +208,11 @@ export class ArrayValue extends PropertyValue {
                     // We never hit any closing brackets or semicolons before the next value
                     // Reset the state to avoid consuming these tokens:
                     state.reset(startOfError);
-                    state.pushDiag(`Unterminated expression`, vscode.DiagnosticSeverity.Error, state.location(start));
+                    state.pushDiag(
+                        `Unterminated expression`,
+                        vscode.DiagnosticSeverity.Error,
+                        state.location(start)
+                    );
                     // state.pushInsertAction('Add closing bracket', ' >', state.location()).isPreferred = true;
                     break;
                 }
@@ -203,14 +220,22 @@ export class ArrayValue extends PropertyValue {
                 const terminators = state.match(/^[>;}]/);
                 if (terminators) {
                     if (terminators[0] === '>') {
-                        state.pushDiag(`Syntax error`, vscode.DiagnosticSeverity.Error, state.location(startOfError, endOfError));
+                        state.pushDiag(
+                            `Syntax error`,
+                            vscode.DiagnosticSeverity.Error,
+                            state.location(startOfError, endOfError)
+                        );
                     } else {
                         if (terminators[0] === ';') {
                             // Reset to right before this to avoid getting the "Missing semicolon" error
                             state.reset(endOfError);
                         }
 
-                        state.pushDiag(`Unterminated expression`, vscode.DiagnosticSeverity.Error, state.location(start, endOfError));
+                        state.pushDiag(
+                            `Unterminated expression`,
+                            vscode.DiagnosticSeverity.Error,
+                            state.location(start, endOfError)
+                        );
                         // state.pushInsertAction('Add closing bracket', ' >', state.location(startOfError, endOfError)).isPreferred = true;
                     }
 
@@ -228,7 +253,7 @@ export class ArrayValue extends PropertyValue {
     }
 
     cellAt(pos: vscode.Position, uri: vscode.Uri) {
-        return this.val.find(v => v.contains(pos, uri));
+        return this.val.find((v) => v.contains(pos, uri));
     }
 
     get length() {
@@ -236,27 +261,27 @@ export class ArrayValue extends PropertyValue {
     }
 
     isNumberArray() {
-        return this.val.every(v => v instanceof IntValue);
+        return this.val.every((v) => v instanceof IntValue);
     }
 
     isNumber() {
-        return (this.val.length === 1) && (this.val[0] instanceof IntValue);
+        return this.val.length === 1 && this.val[0] instanceof IntValue;
     }
 
     isPHandle() {
-        return (this.val.length === 1) && (this.val[0] instanceof IntValue);
+        return this.val.length === 1 && this.val[0] instanceof IntValue;
     }
 
     isPHandleArray() {
-        return this.val.every(v => v instanceof PHandle);
+        return this.val.every((v) => v instanceof PHandle);
     }
 
-    toString(raw=false) {
+    toString(raw = false) {
         if (raw && this.val.length === 1) {
             return this.val[0].toString(raw);
         }
 
-        return `<${this.val.map(v => v.toString(true)).join(' ')}>`;
+        return `<${this.val.map((v) => v.toString(true)).join(' ')}>`;
     }
 }
 
@@ -291,7 +316,7 @@ export class BytestringValue extends PropertyValue {
     }
 
     toString() {
-        return `[ ${this.val.map(v => (v < 0x10 ? '0' : '') + v.toString(16)).join(' ')} ]`;
+        return `[ ${this.val.map((v) => (v < 0x10 ? '0' : '') + v.toString(16)).join(' ')} ]`;
     }
 }
 
@@ -299,7 +324,11 @@ export class PHandle extends PropertyValue {
     val: string;
     kind: 'ref' | 'pathRef' | 'string' | 'invalid';
 
-    private constructor(value: string, loc: vscode.Location, kind: 'ref' | 'pathRef' | 'string' | 'invalid') {
+    private constructor(
+        value: string,
+        loc: vscode.Location,
+        kind: 'ref' | 'pathRef' | 'string' | 'invalid'
+    ) {
         super(value, loc);
         this.kind = kind;
     }
@@ -336,16 +365,16 @@ export class PHandle extends PropertyValue {
         }
     }
 
-    toString(raw=true) {
+    toString(raw = true) {
         switch (this.kind) {
-        case 'ref':
-            return raw ? this.val : `<${this.val}>`;
-        case 'pathRef':
-            return raw ? `&{${this.val}}` : `<&{${this.val}}>`;
-        case 'string':
-            return `"${this.val}"`;
-        case 'invalid':
-            return '';
+            case 'ref':
+                return raw ? this.val : `<${this.val}>`;
+            case 'pathRef':
+                return raw ? `&{${this.val}}` : `<&{${this.val}}>`;
+            case 'string':
+                return `"${this.val}"`;
+            case 'invalid':
+                return '';
         }
     }
 }
@@ -362,8 +391,13 @@ function parsePropValue(state: ParserState) {
         }
 
         if (missingComma) {
-            state.pushDiag(`Expected comma between property values`, vscode.DiagnosticSeverity.Error, missingComma);
-            state.pushInsertAction('Separate values by comma', ',', missingComma).isPreferred = true;
+            state.pushDiag(
+                `Expected comma between property values`,
+                vscode.DiagnosticSeverity.Error,
+                missingComma
+            );
+            state.pushInsertAction('Separate values by comma', ',', missingComma).isPreferred =
+                true;
             missingComma = null;
         }
 
@@ -380,7 +414,7 @@ function parsePropValue(state: ParserState) {
         }
 
         let match: PropertyValue;
-        valueTypes.find(type => match = type.match(state));
+        valueTypes.find((type) => (match = type.match(state)));
         if (match) {
             elems.push(match);
             continue;
@@ -411,7 +445,7 @@ function parsePropValue(state: ParserState) {
     return elems;
 }
 
-type PHandleEntry = { target: PHandle, cells: (IntValue | Expression)[] };
+type PHandleEntry = { target: PHandle; cells: (IntValue | Expression)[] };
 
 export class Property {
     name: string;
@@ -421,7 +455,13 @@ export class Property {
     fullRange: vscode.Range;
     entry: NodeEntry;
 
-    constructor(name: string, loc: vscode.Location, state: ParserState, entry: NodeEntry, labels: string[]=[]) {
+    constructor(
+        name: string,
+        loc: vscode.Location,
+        state: ParserState,
+        entry: NodeEntry,
+        labels: string[] = []
+    ) {
         this.name = name;
         this.loc = loc;
         this.labels = labels;
@@ -438,7 +478,7 @@ export class Property {
         return this.entry.node;
     }
 
-    toString(indent=0): string {
+    toString(indent = 0): string {
         if (this.value.length === 1 && this.value[0] instanceof BoolValue) {
             return `${this.name}`;
         }
@@ -446,7 +486,7 @@ export class Property {
         return `${this.name} = ${this.valueString(indent + this.name.length + 3)}`;
     }
 
-    valueString(indent=0): string {
+    valueString(indent = 0): string {
         if (this.value === undefined) {
             return '?';
         }
@@ -455,7 +495,7 @@ export class Property {
             return 'true';
         }
 
-        const values = this.value.map(v => v.toString());
+        const values = this.value.map((v) => v.toString());
         if (values.length > 1 && indent + values.join(', ').length > 80) {
             return values.join(',\n' + ' '.repeat(indent));
         }
@@ -481,26 +521,34 @@ export class Property {
 
     get fullLoc() {
         if (this.value.length) {
-            return new vscode.Location(this.loc.uri, this.loc.range.union(this.value[this.value.length - 1].loc.range)); // better than nothing
+            return new vscode.Location(
+                this.loc.uri,
+                this.loc.range.union(this.value[this.value.length - 1].loc.range)
+            ); // better than nothing
         }
 
         return this.loc;
     }
 
     get boolean() {
-        if (this.value.length === 1 && (this.value[0] instanceof BoolValue)) {
+        if (this.value.length === 1 && this.value[0] instanceof BoolValue) {
             return true;
         }
     }
 
     get number() {
-        if (this.value.length === 1 && (this.value[0] instanceof ArrayValue) && this.value[0].val.length === 1 && (this.value[0].val[0] instanceof IntValue)) {
+        if (
+            this.value.length === 1 &&
+            this.value[0] instanceof ArrayValue &&
+            this.value[0].val.length === 1 &&
+            this.value[0].val[0] instanceof IntValue
+        ) {
             return this.value[0].val[0].val as number;
         }
     }
 
     get string() {
-        if (this.value.length === 1 && (this.value[0] instanceof StringValue)) {
+        if (this.value.length === 1 && this.value[0] instanceof StringValue) {
             return this.value[0].val as string;
         }
     }
@@ -522,51 +570,72 @@ export class Property {
     }
 
     get pHandle() {
-        if (this.value.length === 1 && (this.value[0] instanceof ArrayValue) && this.value[0].val.length === 1 && (this.value[0].val[0] instanceof PHandle)) {
+        if (
+            this.value.length === 1 &&
+            this.value[0] instanceof ArrayValue &&
+            this.value[0].val.length === 1 &&
+            this.value[0].val[0] instanceof PHandle
+        ) {
             return this.value[0].val[0] as PHandle;
         }
-        if (this.value.length === 1 && (this.value[0] instanceof PHandle)) {
+        if (this.value.length === 1 && this.value[0] instanceof PHandle) {
             return this.value[0] as PHandle;
         }
     }
 
     get bytestring() {
-        if (this.value.length === 1 && (this.value[0] instanceof BytestringValue)) {
+        if (this.value.length === 1 && this.value[0] instanceof BytestringValue) {
             return this.value[0] as BytestringValue;
         }
     }
 
     get array() {
-        if (this.value.length === 1 && (this.value[0] instanceof ArrayValue) && this.value[0].val.every(v => v instanceof IntValue)) {
-            return this.value[0].val.map(v => v.val) as number[];
+        if (
+            this.value.length === 1 &&
+            this.value[0] instanceof ArrayValue &&
+            this.value[0].val.every((v) => v instanceof IntValue)
+        ) {
+            return this.value[0].val.map((v) => v.val) as number[];
         }
     }
 
     get arrays() {
-        if (this.value.every(v => v instanceof ArrayValue && v.val.every(v => v instanceof IntValue))) {
-            return this.value.map(v => v.val.map(v => v.val) as number[]);
+        if (
+            this.value.every(
+                (v) => v instanceof ArrayValue && v.val.every((v) => v instanceof IntValue)
+            )
+        ) {
+            return this.value.map((v) => v.val.map((v) => v.val) as number[]);
         }
     }
 
     get pHandles() {
-        if (this.value.length === 1 && (this.value[0] instanceof ArrayValue) && this.value[0].val.every(v => v instanceof PHandle)) {
+        if (
+            this.value.length === 1 &&
+            this.value[0] instanceof ArrayValue &&
+            this.value[0].val.every((v) => v instanceof PHandle)
+        ) {
             return this.value[0].val as PHandle[];
         }
 
-        if (this.value.every(v => (v instanceof ArrayValue) && v.val.every(p => p instanceof PHandle))) {
-            return this.value.flatMap(v => v.val as PHandle[]);
+        if (
+            this.value.every(
+                (v) => v instanceof ArrayValue && v.val.every((p) => p instanceof PHandle)
+            )
+        ) {
+            return this.value.flatMap((v) => v.val as PHandle[]);
         }
     }
 
     get pHandleArray() {
-        if (this.value.every(v => v instanceof ArrayValue)) {
+        if (this.value.every((v) => v instanceof ArrayValue)) {
             return this.value as ArrayValue[];
         }
     }
 
     get stringArray() {
-        if (this.value.every(v => v instanceof StringValue)) {
-            return this.value.map(v => v.val) as string[];
+        if (this.value.every((v) => v instanceof StringValue)) {
+            return this.value.map((v) => v.val) as string[];
         }
     }
 
@@ -587,7 +656,7 @@ export class Property {
 
         const entries = new Array<PHandleEntry>();
 
-        val.forEach(v => {
+        val.forEach((v) => {
             let i = 0;
             while (i < v.val.length) {
                 const target = v.val[i++];
@@ -595,12 +664,12 @@ export class Property {
                     break;
                 }
 
-                let count = v.val.slice(i).findIndex(v => v instanceof PHandle);
+                let count = v.val.slice(i).findIndex((v) => v instanceof PHandle);
                 if (count === -1) {
                     count = v.val.length - i;
                 }
                 const cells = v.val.slice(i, i + count);
-                if (cells.some(c => !(c instanceof IntValue))) {
+                if (cells.some((c) => !(c instanceof IntValue))) {
                     break;
                 }
 
@@ -617,26 +686,26 @@ export class Property {
             return;
         }
 
-        const entries = new Array<{ addrs: IntValue[], sizes: IntValue[] }>();
+        const entries = new Array<{ addrs: IntValue[]; sizes: IntValue[] }>();
 
         const addrCells = this.node.parent?.addrCells() ?? 2;
         const sizeCells = this.node.parent?.sizeCells() ?? 1;
 
-        val.forEach(v => {
+        val.forEach((v) => {
             for (let i = 0; i + addrCells + sizeCells <= v.val.length; i += sizeCells) {
                 const addrs = v.val.slice(i, i + addrCells);
-                if (!addrs.every(a => a instanceof IntValue)) {
+                if (!addrs.every((a) => a instanceof IntValue)) {
                     break;
                 }
 
                 i += addrCells;
 
                 const sizes = v.val.slice(i, i + sizeCells);
-                if (!sizes.every(a => a instanceof IntValue)) {
+                if (!sizes.every((a) => a instanceof IntValue)) {
                     break;
                 }
 
-                entries.push({ addrs: <IntValue[]>addrs, sizes: <IntValue[]> sizes });
+                entries.push({ addrs: <IntValue[]>addrs, sizes: <IntValue[]>sizes });
             }
         });
 
@@ -653,18 +722,18 @@ export class Property {
             return [];
         }
 
-        const map = new Array<{ in: IntValue[], target: PHandle, out: IntValue[] }>();
+        const map = new Array<{ in: IntValue[]; target: PHandle; out: IntValue[] }>();
 
-        const targetIdx = val[0].val.findIndex(v => v instanceof PHandle);
+        const targetIdx = val[0].val.findIndex((v) => v instanceof PHandle);
         if (targetIdx === -1) {
             return [];
         }
 
-        val.forEach(v => {
+        val.forEach((v) => {
             let i = 0;
             while (i + targetIdx + 1 < v.val.length) {
                 const inputCells = v.val.slice(i, i + targetIdx);
-                if (inputCells.some(c => !(c instanceof IntValue))) {
+                if (inputCells.some((c) => !(c instanceof IntValue))) {
                     break;
                 }
 
@@ -675,7 +744,7 @@ export class Property {
                     break;
                 }
 
-                let outCnt = v.val.slice(i).findIndex(c => !(c instanceof IntValue));
+                let outCnt = v.val.slice(i).findIndex((c) => !(c instanceof IntValue));
                 if (outCnt === -1) {
                     outCnt = v.val.length - i;
                 } else {
@@ -687,11 +756,15 @@ export class Property {
                 }
 
                 const outputCells = v.val.slice(i, i + outCnt);
-                if (outputCells.some(c => c instanceof PHandle)) {
+                if (outputCells.some((c) => c instanceof PHandle)) {
                     break;
                 }
 
-                map.push({in: <IntValue[]>inputCells, target: target, out: <IntValue[]>outputCells});
+                map.push({
+                    in: <IntValue[]>inputCells,
+                    target: target,
+                    out: <IntValue[]>outputCells,
+                });
                 i += outCnt;
             }
         });
@@ -704,7 +777,10 @@ export class Property {
             return [];
         }
 
-        return this.node.property(this.name.slice(0, this.name.length - 1) + '-names')?.stringArray ?? [];
+        return (
+            this.node.property(this.name.slice(0, this.name.length - 1) + '-names')?.stringArray ??
+            []
+        );
     }
 
     /* Get the expected cellnames for this property. */
@@ -714,7 +790,7 @@ export class Property {
             return [];
         }
 
-        return this.pHandleArray.map(arr => {
+        return this.pHandleArray.map((arr) => {
             const contents = arr.val;
 
             if (this.name === 'reg') {
@@ -727,18 +803,26 @@ export class Property {
                 const addrCells = this.node.addrCells();
                 const parentAddrCells = this.node.parent?.addrCells() ?? 2;
                 const sizeCells = this.node.sizeCells();
-                return [...Array(addrCells).fill('child-addr'), ...Array(parentAddrCells).fill('parent-addr'), ...Array(sizeCells).fill('size')];
+                return [
+                    ...Array(addrCells).fill('child-addr'),
+                    ...Array(parentAddrCells).fill('parent-addr'),
+                    ...Array(sizeCells).fill('size'),
+                ];
             }
 
             // Get cells from parents:
             if (this.name.endsWith('s')) {
-                const parentName = this.node.parent?.property(this.name.slice(0, this.name.length - 1) + '-parent')?.pHandle?.val;
+                const parentName = this.node.parent?.property(
+                    this.name.slice(0, this.name.length - 1) + '-parent'
+                )?.pHandle?.val;
                 if (parentName) {
                     const parent = ctx.node(parentName);
                     const cellCount = parent?.cellCount(this.name);
                     if (cellCount !== undefined) {
                         const cells = new Array(cellCount).fill('cell').map((c, i) => `${c}-${i}`);
-                        (<string[]>parent.type?.cells(cellName(this.name)))?.forEach((name, i) => cells[i] = name);
+                        (<string[]>parent.type?.cells(cellName(this.name)))?.forEach(
+                            (name, i) => (cells[i] = name)
+                        );
                         return cells;
                     }
                 }
@@ -746,24 +830,41 @@ export class Property {
 
             // nexus node:
             if (this.name.endsWith('-map')) {
-                const inputCells = contents.findIndex(v => v instanceof PHandle);
+                const inputCells = contents.findIndex((v) => v instanceof PHandle);
                 if (inputCells >= 0) {
                     if (this.name === 'interrupt-map') {
-                        const interruptSpec = new Array(this.node.property('#interrupt-cells')?.number ?? 0).fill('irq-in');
-                        const addrNames = new Array(inputCells - interruptSpec.length).fill('addr-in');
+                        const interruptSpec = new Array(
+                            this.node.property('#interrupt-cells')?.number ?? 0
+                        ).fill('irq-in');
+                        const addrNames = new Array(inputCells - interruptSpec.length).fill(
+                            'addr-in'
+                        );
                         const refNode = ctx.node(contents[inputCells]?.val as string);
                         if (refNode) {
                             const outputAddrs = new Array(refNode.addrCells()).fill(`addr-out`);
-                            const outputNames = new Array(refNode.property('#interrupt-cells')?.number ?? 0).fill('irq-out');
-                            return [...addrNames, ...interruptSpec, '&target', ...outputAddrs, ...outputNames];
+                            const outputNames = new Array(
+                                refNode.property('#interrupt-cells')?.number ?? 0
+                            ).fill('irq-out');
+                            return [
+                                ...addrNames,
+                                ...interruptSpec,
+                                '&target',
+                                ...outputAddrs,
+                                ...outputNames,
+                            ];
                         }
 
                         return [...addrNames, ...interruptSpec, '&target'];
-
                     } else {
                         const inputNames = new Array(inputCells).fill('input');
-                        this.node.refCellNames(this.name)?.slice(0, inputCells).forEach((c, i) => inputNames[i] = c);
-                        const outputNames = ctx.node(contents[inputCells]?.val as string)?.refCellNames(this.name) ?? [];
+                        this.node
+                            .refCellNames(this.name)
+                            ?.slice(0, inputCells)
+                            .forEach((c, i) => (inputNames[i] = c));
+                        const outputNames =
+                            ctx
+                                .node(contents[inputCells]?.val as string)
+                                ?.refCellNames(this.name) ?? [];
                         return [...inputNames, '&target', ...outputNames];
                     }
                 }
@@ -771,9 +872,10 @@ export class Property {
 
             // Get names from referenced nodes:
             let refCells = [];
-            return contents.map(c => {
+            return contents.map((c) => {
                 if (c instanceof PHandle) {
-                    refCells = Array.from(ctx.node(c.val)?.refCellNames(this.name) ?? [])?.reverse() ?? [];
+                    refCells =
+                        Array.from(ctx.node(c.val)?.refCellNames(this.name) ?? [])?.reverse() ?? [];
                     return c.toString();
                 }
 
@@ -791,7 +893,7 @@ export class Property {
     }
 
     valueAt(pos: vscode.Position, uri: vscode.Uri) {
-        return this.value.find(v => v.contains(pos, uri));
+        return this.value.find((v) => v.contains(pos, uri));
     }
 
     type(): string {
@@ -814,11 +916,11 @@ export class Property {
                     return 'invalid';
                 }
                 if (v.length > 1) {
-                    if (v.val.every(e => e instanceof PHandle)) {
+                    if (v.val.every((e) => e instanceof PHandle)) {
                         return 'phandles';
                     }
 
-                    if (v.val.every(e => e instanceof IntValue)) {
+                    if (v.val.every((e) => e instanceof IntValue)) {
                         return 'array';
                     }
 
@@ -847,20 +949,19 @@ export class Property {
             return 'invalid';
         }
 
-        if (this.value.every(v => v instanceof ArrayValue)) {
-
-            if (this.value.every((v: ArrayValue) => v.val.every(e => e instanceof PHandle))) {
+        if (this.value.every((v) => v instanceof ArrayValue)) {
+            if (this.value.every((v: ArrayValue) => v.val.every((e) => e instanceof PHandle))) {
                 return 'phandles';
             }
 
-            if (this.value.every((v: ArrayValue) => v.val.every(e => e instanceof IntValue))) {
+            if (this.value.every((v: ArrayValue) => v.val.every((e) => e instanceof IntValue))) {
                 return 'array';
             }
 
             return 'phandle-array';
         }
 
-        if (this.value.every(v => v instanceof StringValue)) {
+        if (this.value.every((v) => v instanceof StringValue)) {
             return 'string-array';
         }
 
@@ -880,7 +981,13 @@ export class NodeEntry {
     file: DTSFile;
     number: number;
 
-    constructor(loc: vscode.Location, node: Node, nameLoc: vscode.Location, ctx: DTSFile, number: number) {
+    constructor(
+        loc: vscode.Location,
+        node: Node,
+        nameLoc: vscode.Location,
+        ctx: DTSFile,
+        number: number
+    ) {
         this.node = node;
         this.children = [];
         this.properties = [];
@@ -904,19 +1011,23 @@ export class NodeEntry {
     }
 
     getPropertyAt(pos: vscode.Position, uri: vscode.Uri) {
-        return this.properties.find(p => p.fullRange.contains(pos) && p.loc.uri.toString() === uri.toString());
+        return this.properties.find(
+            (p) => p.fullRange.contains(pos) && p.loc.uri.toString() === uri.toString()
+        );
     }
 
     contentString(indent = '') {
         let result = '{';
         const innerIndent = indent + '\t';
 
-        const props = this.properties.map(p => innerIndent + p.toString(innerIndent.length) + ';\n').join('');
+        const props = this.properties
+            .map((p) => innerIndent + p.toString(innerIndent.length) + ';\n')
+            .join('');
         if (props) {
             result += '\n' + props;
         }
 
-        const children = this.children.map(c => c.toString(innerIndent) + ';\n').join('');
+        const children = this.children.map((c) => c.toString(innerIndent) + ';\n').join('');
         if (children) {
             result += '\n' + children;
         }
@@ -938,7 +1049,7 @@ export class Node {
     address?: number;
     type?: NodeType;
     entries: NodeEntry[];
-    pins?: {prop: Property, cells: IntValue[], pinmux?: Node}[];
+    pins?: { prop: Property; cells: IntValue[]; pinmux?: Node }[];
 
     constructor(name: string, address?: string, parent?: Node) {
         if (address) {
@@ -966,26 +1077,28 @@ export class Node {
 
     enabled(): boolean {
         const status = this.property('status');
-        return !status?.string || (['okay', 'ok'].includes(status.string));
+        return !status?.string || ['okay', 'ok'].includes(status.string);
     }
 
     hasLabel(label: string) {
-        return !!this.entries.find(e => e.labels.indexOf(label) != -1);
+        return !!this.entries.find((e) => e.labels.indexOf(label) != -1);
     }
 
     children(): Node[] {
         const children: { [path: string]: Node } = {};
-        this.entries.forEach(e => e.children.forEach(c => children[c.node.path] = c.node));
+        this.entries.forEach((e) => e.children.forEach((c) => (children[c.node.path] = c.node)));
         return Object.values(children);
     }
 
     get sortedEntries() {
-        return this.entries.sort((a, b) => 1000000 * (a.file.priority - b.file.priority) + (a.number - b.number));
+        return this.entries.sort(
+            (a, b) => 1000000 * (a.file.priority - b.file.priority) + (a.number - b.number)
+        );
     }
 
     labels(): string[] {
         const labels: string[] = [];
-        this.entries.forEach(e => labels.push(...e.labels));
+        this.entries.forEach((e) => labels.push(...e.labels));
         return labels;
     }
 
@@ -1027,23 +1140,27 @@ export class Node {
 
         const mask = this.property(entity + '-map-mask')?.array ?? [];
         const passThru = this.property(entity + '-map-pass-thru')?.array ?? [];
-        const out = map.nexusMap?.find(e => entry.cells.every((c, i) => (c.val & (mask[i] ?? 0xffffffff)) === e.in[i]?.val));
+        const out = map.nexusMap?.find((e) =>
+            entry.cells.every((c, i) => (c.val & (mask[i] ?? 0xffffffff)) === e.in[i]?.val)
+        );
         if (out) {
             return {
                 target: out.target,
-                cells: out.out.map((c, i) => c.apply(c.val | ((entry.cells[i]?.val ?? 0) & (passThru[i] ?? 0xffffffff))))
+                cells: out.out.map((c, i) =>
+                    c.apply(c.val | ((entry.cells[i]?.val ?? 0) & (passThru[i] ?? 0xffffffff)))
+                ),
             };
         }
     }
 
     properties(): Property[] {
         const props: Property[] = [];
-        this.entries.forEach(e => props.push(...e.properties));
+        this.entries.forEach((e) => props.push(...e.properties));
         return props;
     }
 
     property(name: string): Property | undefined {
-        return this.uniqueProperties().find(e => e.name === name);
+        return this.uniqueProperties().find((e) => e.name === name);
     }
 
     addrCells(): number {
@@ -1079,26 +1196,35 @@ export class Node {
 
     uniqueProperties(): Property[] {
         const props = {};
-        this.sortedEntries.forEach(e => e.properties.forEach(p => props[p.name] = p));
+        this.sortedEntries.forEach((e) => e.properties.forEach((p) => (props[p.name] = p)));
         return Object.values(props);
     }
 
-    toString(expandChildren=false, indent='') {
-        let result = indent + this.labels().map(label => `${label}: `).join('') + this.fullName + ' {\n';
+    toString(expandChildren = false, indent = '') {
+        let result =
+            indent +
+            this.labels()
+                .map((label) => `${label}: `)
+                .join('') +
+            this.fullName +
+            ' {\n';
         indent += '    ';
 
         const props = this.uniqueProperties();
         const children = this.children();
-        result += props.map(p => indent + p.toString(indent.length) + ';\n').join('');
+        result += props.map((p) => indent + p.toString(indent.length) + ';\n').join('');
 
         if (props.length && children.length) {
             result += '\n';
         }
 
         if (expandChildren) {
-            result += children.filter(c => !c.deleted).map(c => c.toString(expandChildren, indent) + '\n').join('\n');
+            result += children
+                .filter((c) => !c.deleted)
+                .map((c) => c.toString(expandChildren, indent) + '\n')
+                .join('\n');
         } else {
-            result += children.map(c => indent + c.fullName + ' { /* ... */ };\n').join('\n');
+            result += children.map((c) => indent + c.fullName + ' { /* ... */ };\n').join('\n');
         }
 
         return result + indent.slice(4) + '};';
@@ -1112,7 +1238,7 @@ export class DTSFile {
     roots: NodeEntry[];
     entries: NodeEntry[];
     diags: DiagnosticsSet;
-    dirty=true;
+    dirty = true;
     priority: number;
 
     constructor(uri: vscode.Uri, ctx: DTSCtx) {
@@ -1137,8 +1263,8 @@ export class DTSFile {
     }
 
     remove() {
-        this.entries.forEach(e => {
-            e.node.entries = e.node.entries.filter(nodeEntry => nodeEntry !== e);
+        this.entries.forEach((e) => {
+            e.node.entries = e.node.entries.filter((nodeEntry) => nodeEntry !== e);
         });
         this.entries = [];
         this.dirty = true;
@@ -1147,7 +1273,8 @@ export class DTSFile {
     has(uri: vscode.Uri) {
         return (
             this.uri.toString() === uri.toString() ||
-            this.includes.find(include => uri.toString() === include.dst.toString()));
+            this.includes.find((include) => uri.toString() === include.dst.toString())
+        );
     }
 
     getNodeAt(pos: vscode.Position, uri: vscode.Uri): Node {
@@ -1155,7 +1282,9 @@ export class DTSFile {
     }
 
     getEntryAt(pos: vscode.Position, uri: vscode.Uri): NodeEntry {
-        const entries = this.entries.filter(e => e.loc.uri.fsPath === uri.fsPath && e.loc.range.contains(pos));
+        const entries = this.entries.filter(
+            (e) => e.loc.uri.fsPath === uri.fsPath && e.loc.range.contains(pos)
+        );
         if (entries.length === 0) {
             return undefined;
         }
@@ -1176,15 +1305,15 @@ export class DTSCtx {
     boardFile: DTSFile;
     board?: zephyr.Board;
     parsing?: boolean;
-    nodes: {[fullPath: string]: Node};
+    nodes: { [fullPath: string]: Node };
     dirty: vscode.Uri[];
     includes = new Array<string>();
     _name?: string;
-    saved=false;
-    external=false;
+    saved = false;
+    external = false;
     stableTimer = new Debounce(1000);
 
-    constructor(public id: number=-1) {
+    constructor(public id: number = -1) {
         this.nodes = {};
         this.overlays = [];
         this.dirty = [];
@@ -1201,22 +1330,28 @@ export class DTSCtx {
             folder = path.dirname(folder);
         }
 
-        if (vscode.workspace.workspaceFolders?.find(workspace => workspace.uri.fsPath === folder)) {
+        if (
+            vscode.workspace.workspaceFolders?.find((workspace) => workspace.uri.fsPath === folder)
+        ) {
             return path.basename(uri.fsPath, path.extname(uri.fsPath));
         }
 
-        return vscode.workspace.asRelativePath(folder) + ': ' + path.basename(uri.fsPath, path.extname(uri.fsPath));
+        return (
+            vscode.workspace.asRelativePath(folder) +
+            ': ' +
+            path.basename(uri.fsPath, path.extname(uri.fsPath))
+        );
     }
 
     reset() {
         // Kill all affected files:
-        if (this.dirty.some(uri => this.boardFile?.has(uri))) {
+        if (this.dirty.some((uri) => this.boardFile?.has(uri))) {
             this.boardFile.remove();
         }
 
         this.overlays
-            .filter(overlay => this.dirty.some(uri => overlay.has(uri)))
-            .forEach(overlay => overlay.remove());
+            .filter((overlay) => this.dirty.some((uri) => overlay.has(uri)))
+            .forEach((overlay) => overlay.remove());
 
         const removed = { board: this.boardFile, overlays: this.overlays };
 
@@ -1230,7 +1365,9 @@ export class DTSCtx {
 
     async setBoard(board: zephyr.Board) {
         if (board.arch) {
-            this.includes = zephyr.modules.map(module => vscode.Uri.joinPath(module, 'dts', board.arch).fsPath);
+            this.includes = zephyr.modules.map(
+                (module) => vscode.Uri.joinPath(module, 'dts', board.arch).fsPath
+            );
         }
 
         this.board = board;
@@ -1244,13 +1381,13 @@ export class DTSCtx {
     }
 
     setOverlays(uris: vscode.Uri[]) {
-        this.overlays.forEach(overlay => overlay.remove());
-        this.overlays = uris.map(uri => new DTSFile(uri, this));
-        uris.forEach(uri => this.dirty.push(uri));
+        this.overlays.forEach((overlay) => overlay.remove());
+        this.overlays = uris.map((uri) => new DTSFile(uri, this));
+        uris.forEach((uri) => this.dirty.push(uri));
     }
 
     adoptNodes(file: DTSFile) {
-        file.entries.forEach(e => {
+        file.entries.forEach((e) => {
             if (!(e.node.path in this.nodes)) {
                 this.nodes[e.node.path] = e.node;
             }
@@ -1258,7 +1395,11 @@ export class DTSCtx {
     }
 
     isValid() {
-        return this.dirty.length === 0 && !this.boardFile?.dirty && !this.overlays.some(overlay => !overlay || overlay.dirty);
+        return (
+            this.dirty.length === 0 &&
+            !this.boardFile?.dirty &&
+            !this.overlays.some((overlay) => !overlay || overlay.dirty)
+        );
     }
 
     node(name: string, parent?: Node): Node | null {
@@ -1271,7 +1412,7 @@ export class DTSCtx {
             name = path[1];
         } else if (name.startsWith('&')) {
             const ref = name.slice(1);
-            return Object.values(this.nodes).find(n => n.hasLabel(ref)) ?? null;
+            return Object.values(this.nodes).find((n) => n.hasLabel(ref)) ?? null;
         }
 
         if (!name.endsWith('/')) {
@@ -1290,38 +1431,46 @@ export class DTSCtx {
     }
 
     has(uri: vscode.Uri): boolean {
-        return !!this.boardFile?.has(uri) || this.overlays.some(o => o.has(uri));
+        return !!this.boardFile?.has(uri) || this.overlays.some((o) => o.has(uri));
     }
 
     getDiags(): DiagnosticsSet {
         const all = new DiagnosticsSet();
-        this.files.forEach(ctx => all.merge(ctx.diags));
+        this.files.forEach((ctx) => all.merge(ctx.diags));
         return all;
     }
 
     getNodeAt(pos: vscode.Position, uri: vscode.Uri): Node {
         let node: Node;
-        this.files.filter(f => f.has(uri)).find(file => node = file.getNodeAt(pos, uri));
+        this.files.filter((f) => f.has(uri)).find((file) => (node = file.getNodeAt(pos, uri)));
         return node;
     }
 
     getEntryAt(pos: vscode.Position, uri: vscode.Uri): NodeEntry {
         let entry: NodeEntry;
-        this.files.filter(f => f.has(uri)).find(file => entry = file.getEntryAt(pos, uri));
+        this.files.filter((f) => f.has(uri)).find((file) => (entry = file.getEntryAt(pos, uri)));
         return entry;
     }
 
     getPropertyAt(pos: vscode.Position, uri: vscode.Uri): Property {
         let prop: Property;
-        this.files.filter(f => f.has(uri)).find(file => prop = file.getPropertyAt(pos, uri));
+        this.files.filter((f) => f.has(uri)).find((file) => (prop = file.getPropertyAt(pos, uri)));
         return prop;
     }
 
     getReferences(node: Node): PHandle[] {
         const refs = new Array<PHandle>();
 
-        this.properties.forEach(p => {
-            refs.push(...(<PHandle[]>p.pHandleArray?.flatMap(v => v.val.filter(v => v instanceof PHandle && v.is(node))) ?? p.pHandles ?? []));
+        this.properties.forEach((p) => {
+            refs.push(
+                ...(<PHandle[]>(
+                    p.pHandleArray?.flatMap((v) =>
+                        v.val.filter((v) => v instanceof PHandle && v.is(node))
+                    )
+                ) ??
+                    p.pHandles ??
+                    [])
+            );
         });
 
         return refs;
@@ -1329,8 +1478,16 @@ export class DTSCtx {
 
     getProperties(range: vscode.Range, uri: vscode.Uri) {
         const props = new Array<Property>();
-        this.nodeArray().forEach(n => {
-            props.push(...n.properties().filter(p => p.fullLoc.uri.toString() === uri.toString() && p.fullLoc.range.intersection(range)));
+        this.nodeArray().forEach((n) => {
+            props.push(
+                ...n
+                    .properties()
+                    .filter(
+                        (p) =>
+                            p.fullLoc.uri.toString() === uri.toString() &&
+                            p.fullLoc.range.intersection(range)
+                    )
+            );
         });
 
         return props;
@@ -1338,14 +1495,16 @@ export class DTSCtx {
 
     getPHandleNode(handle: number | string): Node {
         if (typeof handle === 'number') {
-            return this.nodeArray().find(n => n.properties().find(p => p.name === 'phandle' && p.value[0].val === handle));
+            return this.nodeArray().find((n) =>
+                n.properties().find((p) => p.name === 'phandle' && p.value[0].val === handle)
+            );
         } else if (typeof handle === 'string') {
-            return this.nodeArray().find(n => n.labels().find(p => p === handle));
+            return this.nodeArray().find((n) => n.labels().find((p) => p === handle));
         }
     }
 
     file(uri: vscode.Uri) {
-        return this.files.find(f => f.has(uri));
+        return this.files.find((f) => f.has(uri));
     }
 
     get files() {
@@ -1357,19 +1516,21 @@ export class DTSCtx {
     }
 
     get defines() {
-        return this.files.map(file => file.processed?.defines).reduce((defines, add) => defines = { ...defines, ...add }, <Defines>{});
+        return this.files
+            .map((file) => file.processed?.defines)
+            .reduce((defines, add) => (defines = { ...defines, ...add }), <Defines>{});
     }
 
     get roots() {
-        return this.files.flatMap(c => c?.roots);
+        return this.files.flatMap((c) => c?.roots);
     }
 
     get entries() {
-        return this.files.flatMap(c => c?.entries);
+        return this.files.flatMap((c) => c?.entries);
     }
 
     get properties() {
-        return this.entries.flatMap(e => e.properties);
+        return this.entries.flatMap((e) => e.properties);
     }
 
     get root() {
@@ -1403,7 +1564,7 @@ export class Parser {
     private inDTS: boolean;
     private isStable = true;
     private waiters = new Array<() => void>();
-    private nextId=0;
+    private nextId = 0;
 
     constructor() {
         this.includes = [];
@@ -1419,20 +1580,20 @@ export class Parser {
             return file;
         }
 
-        this.contexts.find(ctx => file = ctx.files.find(f => f.has(uri)));
+        this.contexts.find((ctx) => (file = ctx.files.find((f) => f.has(uri))));
         return file;
     }
 
     ctx(id: vscode.Uri | number): DTSCtx | undefined {
-        if (typeof(id) === 'number') {
-            return this.contexts.find(ctx => ctx.id === id);
+        if (typeof id === 'number') {
+            return this.contexts.find((ctx) => ctx.id === id);
         }
 
         if (this.currCtx?.has(id)) {
             return this.currCtx;
         }
 
-        return this.contexts.find(ctx => ctx.has(id));
+        return this.contexts.find((ctx) => ctx.has(id));
     }
 
     set currCtx(ctx: DTSCtx) {
@@ -1454,7 +1615,7 @@ export class Parser {
             return;
         }
 
-        return new Promise(resolve => this.waiters.push(resolve));
+        return new Promise((resolve) => this.waiters.push(resolve));
     }
 
     get contexts() {
@@ -1477,39 +1638,56 @@ export class Parser {
         board = await zephyr.defaultBoard();
         if (board) {
             const options = ['Change default board'];
-            vscode.window.showInformationMessage(`Using ${board.name} as a default board.`, ...options).then(async e => {
-                if (e === options[0]) {
-                    config.configureSetting('defaultBoard');
-                }
-            });
+            vscode.window
+                .showInformationMessage(`Using ${board.name} as a default board.`, ...options)
+                .then(async (e) => {
+                    if (e === options[0]) {
+                        config.configureSetting('defaultBoard');
+                    }
+                });
             return board;
         }
         if (zephyr.zephyrRoot) {
             // At this point, the user probably didn't set up their repo correctly, but we'll give them a chance to fix it:
-            return await vscode.window.showErrorMessage('Unable to find board.', 'Select a board').then(e => {
-                if (e) {
-                    return zephyr.selectBoard(); // TODO: Reload context instead of blocking?
-                }
-            });
+            return await vscode.window
+                .showErrorMessage('Unable to find board.', 'Select a board')
+                .then((e) => {
+                    if (e) {
+                        return zephyr.selectBoard(); // TODO: Reload context instead of blocking?
+                    }
+                });
         }
     }
 
-    async addContext(board?: vscode.Uri | zephyr.Board, overlays=<vscode.Uri[]>[], name?: string): Promise<DTSCtx> {
+    async addContext(
+        board?: vscode.Uri | zephyr.Board,
+        overlays = <vscode.Uri[]>[],
+        name?: string
+    ): Promise<DTSCtx> {
         const ctx = new DTSCtx(++this.nextId);
         let boardDoc: vscode.TextDocument;
         if (board instanceof vscode.Uri) {
             ctx.board = zephyr.board(board);
-            boardDoc = await vscode.workspace.openTextDocument(ctx.board.uri).then(doc => doc, _ => undefined);
+            boardDoc = await vscode.workspace.openTextDocument(ctx.board.uri).then(
+                (doc) => doc,
+                (_) => undefined
+            );
         } else if (board) {
             ctx.board = board;
-            boardDoc = await vscode.workspace.openTextDocument(ctx.board.uri).then(doc => doc, _ => undefined);
+            boardDoc = await vscode.workspace.openTextDocument(ctx.board.uri).then(
+                (doc) => doc,
+                (_) => undefined
+            );
         } else if (overlays.length) {
             ctx.board = await this.guessOverlayBoard([...overlays].pop());
             if (!ctx.board) {
                 return;
             }
 
-            boardDoc = await vscode.workspace.openTextDocument(ctx.board.uri).then(doc => doc, _ => undefined);
+            boardDoc = await vscode.workspace.openTextDocument(ctx.board.uri).then(
+                (doc) => doc,
+                (_) => undefined
+            );
         } else {
             return;
         }
@@ -1521,13 +1699,24 @@ export class Parser {
         // Board specific includes:
         if (ctx.board.arch) {
             // Should this be SOC_DIR based?
-            ctx.includes = zephyr.modules.map(module => vscode.Uri.joinPath(module, 'dts', ctx.board.arch).fsPath);
+            ctx.includes = zephyr.modules.map(
+                (module) => vscode.Uri.joinPath(module, 'dts', ctx.board.arch).fsPath
+            );
         }
 
         ctx.parsing = true;
         ctx.boardFile = await this.parse(ctx, boardDoc);
         ctx.parsing = false;
-        ctx.overlays = (await Promise.all(overlays.map(uri => vscode.workspace.openTextDocument(uri).then(doc => this.parse(ctx, doc), () => undefined)))).filter(d => d);
+        ctx.overlays = (
+            await Promise.all(
+                overlays.map((uri) =>
+                    vscode.workspace.openTextDocument(uri).then(
+                        (doc) => this.parse(ctx, doc),
+                        () => undefined
+                    )
+                )
+            )
+        ).filter((d) => d);
         if (overlays.length && !ctx.overlays.length) {
             return;
         }
@@ -1538,7 +1727,11 @@ export class Parser {
          * Remove any .dtsi contexts this board file includes:
          */
         if (path.extname(boardDoc.fileName) === '.dts') {
-            this.boardCtx = this.boardCtx.filter(existing => path.extname(existing.boardFile.uri.fsPath) === '.dts' || !ctx.has(existing.boardFile.uri));
+            this.boardCtx = this.boardCtx.filter(
+                (existing) =>
+                    path.extname(existing.boardFile.uri.fsPath) === '.dts' ||
+                    !ctx.has(existing.boardFile.uri)
+            );
         }
 
         if (overlays.length) {
@@ -1553,8 +1746,8 @@ export class Parser {
     }
 
     removeCtx(ctx: DTSCtx) {
-        this.appCtx = this.appCtx.filter(c => c !== ctx);
-        this.boardCtx = this.boardCtx.filter(c => c !== ctx);
+        this.appCtx = this.appCtx.filter((c) => c !== ctx);
+        this.boardCtx = this.boardCtx.filter((c) => c !== ctx);
         if (this.currCtx === ctx) {
             this._currCtx = null;
         }
@@ -1592,7 +1785,7 @@ export class Parser {
 
     async insertOverlays(...uris: vscode.Uri[]) {
         if (this.currCtx) {
-            uris.forEach(uri => this.currCtx.insertOverlay(uri));
+            uris.forEach((uri) => this.currCtx.insertOverlay(uri));
             return this.reparse(this.currCtx);
         }
     }
@@ -1612,7 +1805,10 @@ export class Parser {
         const removed = ctx.reset();
 
         if (removed.board?.dirty) {
-            const doc = await vscode.workspace.openTextDocument(removed.board.uri).then(doc => doc, _ => undefined);
+            const doc = await vscode.workspace.openTextDocument(removed.board.uri).then(
+                (doc) => doc,
+                (_) => undefined
+            );
             ctx.boardFile = await this.parse(ctx, doc);
         } else {
             ctx.adoptNodes(removed.board);
@@ -1621,7 +1817,10 @@ export class Parser {
 
         for (const overlay of removed.overlays) {
             if (overlay.dirty) {
-                const doc = await vscode.workspace.openTextDocument(overlay.uri).then(doc => doc, _ => undefined);
+                const doc = await vscode.workspace.openTextDocument(overlay.uri).then(
+                    (doc) => doc,
+                    (_) => undefined
+                );
                 ctx.overlays.push(await this.parse(ctx, doc));
             } else {
                 ctx.adoptNodes(overlay);
@@ -1645,7 +1844,9 @@ export class Parser {
         }
 
         // Postpone reparsing of other contexts until they're refocused:
-        [...this.appCtx, ...this.boardCtx].filter(ctx => ctx.has(e.document.uri)).forEach(ctx => ctx.dirty.push(e.document.uri)); // TODO: Filter duplicates?
+        [...this.appCtx, ...this.boardCtx]
+            .filter((ctx) => ctx.has(e.document.uri))
+            .forEach((ctx) => ctx.dirty.push(e.document.uri)); // TODO: Filter duplicates?
 
         if (this.currCtx && !this.currCtx.parsing) {
             this.reparse(this.currCtx);
@@ -1680,7 +1881,7 @@ export class Parser {
     async activate(ctx: vscode.ExtensionContext) {
         const setIncludes = () => {
             const includes = new Array<string>();
-            zephyr.modules.forEach(m => {
+            zephyr.modules.forEach((m) => {
                 includes.push(vscode.Uri.joinPath(m, 'include').fsPath);
                 includes.push(vscode.Uri.joinPath(m, 'dts').fsPath);
                 includes.push(vscode.Uri.joinPath(m, 'dts', 'common').fsPath);
@@ -1691,25 +1892,43 @@ export class Parser {
         setIncludes();
         ctx.subscriptions.push(zephyr.onChange(() => setIncludes));
 
-        ctx.subscriptions.push(vscode.workspace.onDidChangeTextDocument(doc => this.onDidChange(doc)));
-        ctx.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(e => this.onDidChangetextEditor(e)));
-        ctx.subscriptions.push(vscode.workspace.onDidDeleteFiles(e => e.files.forEach(uri => {
-            const remove = this.contexts.filter(ctx =>
-                (ctx.overlays.length === 1 && ctx.overlays[0].uri.toString() === uri.toString()) ||
-                (ctx.boardFile?.uri.toString() === uri.toString()));
-            remove.forEach(ctx => this.removeCtx(ctx));
+        ctx.subscriptions.push(
+            vscode.workspace.onDidChangeTextDocument((doc) => this.onDidChange(doc))
+        );
+        ctx.subscriptions.push(
+            vscode.window.onDidChangeActiveTextEditor((e) => this.onDidChangetextEditor(e))
+        );
+        ctx.subscriptions.push(
+            vscode.workspace.onDidDeleteFiles((e) =>
+                e.files.forEach((uri) => {
+                    const remove = this.contexts.filter(
+                        (ctx) =>
+                            (ctx.overlays.length === 1 &&
+                                ctx.overlays[0].uri.toString() === uri.toString()) ||
+                            ctx.boardFile?.uri.toString() === uri.toString()
+                    );
+                    remove.forEach((ctx) => this.removeCtx(ctx));
 
-            this.contexts.filter(ctx => ctx.has(uri)).forEach(ctx => ctx.dirty.push(uri));
-            if (this.currCtx?.dirty.length) {
-                this.reparse(this.currCtx);
-            }
-        })));
-        return Promise.all(vscode.window.visibleTextEditors.map(e => this.onDidOpen(e.document)));
+                    this.contexts
+                        .filter((ctx) => ctx.has(uri))
+                        .forEach((ctx) => ctx.dirty.push(uri));
+                    if (this.currCtx?.dirty.length) {
+                        this.reparse(this.currCtx);
+                    }
+                })
+            )
+        );
+        return Promise.all(vscode.window.visibleTextEditors.map((e) => this.onDidOpen(e.document)));
     }
 
     private async parse(ctx: DTSCtx, doc: vscode.TextDocument): Promise<DTSFile> {
         const file = new DTSFile(doc.uri, ctx);
-        const processed = await preprocess(doc, {...this.defines, ...ctx.defines}, [...this.includes, ...ctx.includes], file.diags);
+        const processed = await preprocess(
+            doc,
+            { ...this.defines, ...ctx.defines },
+            [...this.includes, ...ctx.includes],
+            file.diags
+        );
         const state = new ParserState(doc.uri, file.diags, processed.lines);
 
         file.processed = processed;
@@ -1756,9 +1975,11 @@ export class Parser {
 
                 const nodeMatch = state.match(/^{/);
                 if (nodeMatch) {
-                    let node = new Node(name[1],
+                    let node = new Node(
+                        name[1],
                         addr?.[1],
-                        nodeStack.length > 0 ? nodeStack[nodeStack.length - 1].node : undefined);
+                        nodeStack.length > 0 ? nodeStack[nodeStack.length - 1].node : undefined
+                    );
 
                     if (ctx.nodes[node.path]) {
                         node = ctx.nodes[node.path];
@@ -1782,13 +2003,26 @@ export class Parser {
                     nodeStack.push(entry);
 
                     if (addr?.[1]?.startsWith('0') && Number(addr[1]) !== 0) {
-                        state.pushDiag(`Address should not start with leading 0's`, vscode.DiagnosticSeverity.Warning);
-                        const action = state.pushAction(`Trim leading 0's`, vscode.CodeActionKind.QuickFix);
+                        state.pushDiag(
+                            `Address should not start with leading 0's`,
+                            vscode.DiagnosticSeverity.Warning
+                        );
+                        const action = state.pushAction(
+                            `Trim leading 0's`,
+                            vscode.CodeActionKind.QuickFix
+                        );
                         action.edit = new vscode.WorkspaceEdit();
-                        action.edit.delete(nameLoc.uri,
-                            new vscode.Range(nameLoc.range.start.line, nameLoc.range.start.character + name[0].length + 1,
-                                             nameLoc.range.end.line,   nameLoc.range.end.character - addr[1].length + addr[1].match(/0+/)[0].length));
-
+                        action.edit.delete(
+                            nameLoc.uri,
+                            new vscode.Range(
+                                nameLoc.range.start.line,
+                                nameLoc.range.start.character + name[0].length + 1,
+                                nameLoc.range.end.line,
+                                nameLoc.range.end.character -
+                                    addr[1].length +
+                                    addr[1].match(/0+/)[0].length
+                            )
+                        );
                     }
 
                     labels = [];
@@ -1798,7 +2032,11 @@ export class Parser {
                 requireSemicolon = true;
 
                 if (addr) {
-                    state.pushDiag(`Only nodes have addresses. Expecting opening node block`, vscode.DiagnosticSeverity.Warning, nameLoc);
+                    state.pushDiag(
+                        `Only nodes have addresses. Expecting opening node block`,
+                        vscode.DiagnosticSeverity.Warning,
+                        nameLoc
+                    );
                     continue;
                 }
 
@@ -1806,10 +2044,20 @@ export class Parser {
                 const hasPropValue = state.match(/^=/);
                 if (hasPropValue) {
                     if (nodeStack.length > 0) {
-                        const p = new Property(name[0], nameLoc, state, nodeStack[nodeStack.length - 1], labels);
+                        const p = new Property(
+                            name[0],
+                            nameLoc,
+                            state,
+                            nodeStack[nodeStack.length - 1],
+                            labels
+                        );
                         nodeStack[nodeStack.length - 1].properties.push(p);
                     } else {
-                        state.pushDiag('Property outside of node context', vscode.DiagnosticSeverity.Error, nameLoc);
+                        state.pushDiag(
+                            'Property outside of node context',
+                            vscode.DiagnosticSeverity.Error,
+                            nameLoc
+                        );
                     }
 
                     labels = [];
@@ -1817,13 +2065,23 @@ export class Parser {
                 }
 
                 if (nodeStack.length > 0) {
-                    const p = new Property(name[0], nameLoc, state, nodeStack[nodeStack.length - 1], labels);
+                    const p = new Property(
+                        name[0],
+                        nameLoc,
+                        state,
+                        nodeStack[nodeStack.length - 1],
+                        labels
+                    );
                     nodeStack[nodeStack.length - 1].properties.push(p);
                     labels = [];
                     continue;
                 }
 
-                state.pushDiag('Property outside of node context', vscode.DiagnosticSeverity.Error, nameLoc);
+                state.pushDiag(
+                    'Property outside of node context',
+                    vscode.DiagnosticSeverity.Error,
+                    nameLoc
+                );
                 continue;
             }
 
@@ -1859,7 +2117,10 @@ export class Parser {
             }
 
             if (labels.length) {
-                state.pushDiag('Expected node or property after label', vscode.DiagnosticSeverity.Warning);
+                state.pushDiag(
+                    'Expected node or property after label',
+                    vscode.DiagnosticSeverity.Warning
+                );
                 labels = [];
             }
 
@@ -1911,11 +2172,11 @@ export class Parser {
                     continue;
                 }
 
-                const props = nodeStack[nodeStack.length-1]?.node.properties();
+                const props = nodeStack[nodeStack.length - 1]?.node.properties();
                 if (!props) {
                     continue;
                 }
-                const p = props.find(p => p.name === deleteProp[0]);
+                const p = props.find((p) => p.name === deleteProp[0]);
                 if (!p) {
                     state.pushDiag(`Unknown property`, vscode.DiagnosticSeverity.Warning);
                     continue;
@@ -1929,7 +2190,13 @@ export class Parser {
                 if (!ctx.root) {
                     ctx.nodes['/'] = new Node('');
                 }
-                const entry = new NodeEntry(state.location(), ctx.root, new vscode.Location(state.location().uri, state.location().range.start), file, entries++);
+                const entry = new NodeEntry(
+                    state.location(),
+                    ctx.root,
+                    new vscode.Location(state.location().uri, state.location().range.start),
+                    file,
+                    entries++
+                );
                 ctx.root.entries.push(entry);
                 file.roots.push(entry);
                 file.entries.push(entry);
@@ -1941,7 +2208,10 @@ export class Parser {
             if (closingBrace) {
                 if (nodeStack.length > 0) {
                     const entry = nodeStack.pop();
-                    entry.loc = new vscode.Location(entry.loc.uri, new vscode.Range(entry.loc.range.start, state.location().range.end));
+                    entry.loc = new vscode.Location(
+                        entry.loc.uri,
+                        new vscode.Range(entry.loc.range.start, state.location().range.end)
+                    );
                 } else {
                     state.pushDiag('Unexpected closing bracket');
                     state.pushDeleteAction('Delete unnecessary closing bracket').isPreferred = true;
@@ -1959,10 +2229,21 @@ export class Parser {
         if (nodeStack.length > 0) {
             const loc = state.location();
             const entry = nodeStack[nodeStack.length - 1];
-            entry.loc = new vscode.Location(entry.loc.uri, new vscode.Range(entry.loc.range.start, state.location().range.end));
+            entry.loc = new vscode.Location(
+                entry.loc.uri,
+                new vscode.Range(entry.loc.range.start, state.location().range.end)
+            );
             console.error(`Unterminated node: ${nodeStack[nodeStack.length - 1].node.name}`);
             state.pushDiag('Unterminated node', vscode.DiagnosticSeverity.Error, entry.nameLoc);
-            state.pushInsertAction('Close brackets', '\n' + nodeStack.map((_, i) => '\t'.repeat(i) + '};\n').reverse().join(''), loc).isPreferred = true;
+            state.pushInsertAction(
+                'Close brackets',
+                '\n' +
+                    nodeStack
+                        .map((_, i) => '\t'.repeat(i) + '};\n')
+                        .reverse()
+                        .join(''),
+                loc
+            ).isPreferred = true;
         }
 
         if (requireSemicolon) {
@@ -1971,7 +2252,7 @@ export class Parser {
         }
 
         // Resolve types:
-        Object.values(ctx.nodes).forEach(node => {
+        Object.values(ctx.nodes).forEach((node) => {
             if (!node.type?.valid) {
                 node.type = typeLoader.nodeType(node);
             }
@@ -1986,7 +2267,7 @@ export function getCells(propName: string, parent?: Node): string[] | undefined 
     const cellProp = getPHandleCells(propName, parent);
 
     if (cellProp) {
-        return ['label'].concat(Array(<number> cellProp.value[0].val).fill('cell'));
+        return ['label'].concat(Array(<number>cellProp.value[0].val).fill('cell'));
     }
 
     if (propName === 'reg') {
@@ -2002,7 +2283,9 @@ export function cellName(propname: string) {
          * where XXX is the singular version of the name of this property UNLESS the property is called XXX-gpios, in which
          * case the cell count is determined by the parent's #gpio-cells property
          */
-        return propname.endsWith('-gpios') ? 'gpio-cells' : propname.slice(0, propname.length - 1) + '-cells';
+        return propname.endsWith('-gpios')
+            ? 'gpio-cells'
+            : propname.slice(0, propname.length - 1) + '-cells';
     }
 
     if (propname.endsWith('-map')) {
@@ -2017,6 +2300,5 @@ export function cellName(propname: string) {
 export function getPHandleCells(propname: string, parent: Node): Property {
     return parent?.property('#' + cellName(propname));
 }
-
 
 export const parser = new Parser();

@@ -65,7 +65,7 @@ class ConfigurationReader implements vscode.Disposable {
     constructor() {
         this._config = vscode.workspace.getConfiguration(settingsNamespace);
         this._emitters = {};
-        this._updateSubscription = vscode.workspace.onDidChangeConfiguration(e => {
+        this._updateSubscription = vscode.workspace.onDidChangeConfiguration((e) => {
             if (e.affectsConfiguration(settingsNamespace)) {
                 this._config = vscode.workspace.getConfiguration(settingsNamespace);
                 Object.entries(this._emitters)
@@ -100,7 +100,7 @@ class ConfigurationReader implements vscode.Disposable {
     }
 
     dispose(): void {
-        Object.values(this._emitters).forEach(emitter => emitter.dispose());
+        Object.values(this._emitters).forEach((emitter) => emitter.dispose());
         this._updateSubscription.dispose();
     }
 

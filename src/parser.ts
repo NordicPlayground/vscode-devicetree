@@ -7,13 +7,13 @@ import * as vscode from 'vscode';
 import { DiagnosticsSet } from './diags';
 import { Line } from './preprocessor';
 
-type Offset = { line: number, col: number };
+type Offset = { line: number; col: number };
 
 export class ParserState {
     readonly token = /^[#-\w]+|./;
     readonly lines: Line[];
     private offset: Offset;
-    private prevRange: { start: Offset, length: number };
+    private prevRange: { start: Offset; length: number };
     diags: DiagnosticsSet;
     uri: vscode.Uri;
 
@@ -23,27 +23,41 @@ export class ParserState {
         }
 
         if (!end) {
-            end = <Offset>{ line: this.prevRange.start.line, col: this.prevRange.start.col + this.prevRange.length };
+            end = <Offset>{
+                line: this.prevRange.start.line,
+                col: this.prevRange.start.col + this.prevRange.length,
+            };
         }
 
         const startLine = this.lines[start.line];
         const endLine = this.lines[end.line];
 
-        return new vscode.Location(startLine.uri,
-                                   new vscode.Range(startLine.number, startLine.rawPos(start.col, true),
-                                                    endLine.number, endLine.rawPos(end.col, false)));
+        return new vscode.Location(
+            startLine.uri,
+            new vscode.Range(
+                startLine.number,
+                startLine.rawPos(start.col, true),
+                endLine.number,
+                endLine.rawPos(end.col, false)
+            )
+        );
     }
 
     getLine(uri: vscode.Uri, pos: vscode.Position) {
-        return this.lines.find(l => l.contains(uri, pos));
+        return this.lines.find((l) => l.contains(uri, pos));
     }
 
     raw(loc: vscode.Location) {
         if (loc.range.isSingleLine) {
-            return this.getLine(loc.uri, loc.range.start)?.raw.slice(loc.range.start.character, loc.range.end.character) ?? '';
+            return (
+                this.getLine(loc.uri, loc.range.start)?.raw.slice(
+                    loc.range.start.character,
+                    loc.range.end.character
+                ) ?? ''
+            );
         }
 
-        let i = this.lines.findIndex(l => l.contains(loc.uri, loc.range.start));
+        let i = this.lines.findIndex((l) => l.contains(loc.uri, loc.range.start));
         if (i < 0) {
             return '';
         }
@@ -57,7 +71,11 @@ export class ParserState {
         return content;
     }
 
-    pushDiag(message: string, severity: vscode.DiagnosticSeverity=vscode.DiagnosticSeverity.Error, loc?: vscode.Location): vscode.Diagnostic {
+    pushDiag(
+        message: string,
+        severity: vscode.DiagnosticSeverity = vscode.DiagnosticSeverity.Error,
+        loc?: vscode.Location
+    ): vscode.Diagnostic {
         if (!loc) {
             loc = this.location();
         }
@@ -162,7 +180,13 @@ export class ParserState {
         }
 
         const prev = this.location();
-        return new vscode.Location(prev.uri, new vscode.Range(prev.range.end, new vscode.Position(prev.range.end.line, prev.range.end.character + match[0].length)));
+        return new vscode.Location(
+            prev.uri,
+            new vscode.Range(
+                prev.range.end,
+                new vscode.Position(prev.range.end.line, prev.range.end.character + match[0].length)
+            )
+        );
     }
 
     freeze(): Offset {
@@ -170,27 +194,30 @@ export class ParserState {
     }
 
     since(start: Offset) {
-        return this.lines.slice(start.line, this.offset.line + 1).map((l, i) => {
-            if (i === this.offset.line - start.line) {
-                if (i === 0) {
-                    return l.text.slice(start.col, this.offset.col);
+        return this.lines
+            .slice(start.line, this.offset.line + 1)
+            .map((l, i) => {
+                if (i === this.offset.line - start.line) {
+                    if (i === 0) {
+                        return l.text.slice(start.col, this.offset.col);
+                    }
+
+                    return l.text.slice(0, this.offset.col);
                 }
 
-                return l.text.slice(0, this.offset.col);
-            }
+                if (i === 0) {
+                    return l.text.slice(start.col);
+                }
 
-            if (i === 0) {
-                return l.text.slice(start.col);
-            }
-
-            return l.text;
-        }).join('\n');
+                return l.text;
+            })
+            .join('\n');
     }
 
     constructor(uri: vscode.Uri, diags: DiagnosticsSet, lines: Line[]) {
         this.uri = uri;
         this.diags = diags;
-        this.offset = {line: 0, col: 0};
+        this.offset = { line: 0, col: 0 };
         this.prevRange = { start: this.offset, length: 0 };
         this.lines = lines;
     }
