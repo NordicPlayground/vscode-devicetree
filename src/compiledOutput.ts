@@ -4,6 +4,14 @@ import * as path from 'path';
 
 type CompiledEntity = { start: number, end: number, entity?: dts.Node | dts.Property };
 
+interface BuildConfiguration {
+    conf: {
+        devicetree: {
+            id: number;
+        }
+    }
+};
+
 export class DTSDocumentProvider implements vscode.TextDocumentContentProvider {
     private static readonly COMMAND = 'devicetree.showOutput';
     private readonly INDENT = ' '.repeat(8);
@@ -27,10 +35,15 @@ export class DTSDocumentProvider implements vscode.TextDocumentContentProvider {
     activate(ctx: vscode.ExtensionContext) {
         ctx.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider('devicetree', this));
         ctx.subscriptions.push(
-            vscode.commands.registerCommand(DTSDocumentProvider.COMMAND, (uri?: dts.DTSCtx | vscode.Uri, options?: vscode.TextDocumentShowOptions) => {
-                if (uri instanceof dts.DTSCtx) {
-                    uri = uri.files.pop()?.uri;
-                } else if (!uri && vscode.window.activeTextEditor?.document.languageId === 'dts') {
+            vscode.commands.registerCommand(DTSDocumentProvider.COMMAND, (arg?: dts.DTSCtx | vscode.Uri | BuildConfiguration, options?: vscode.TextDocumentShowOptions) => {
+                let uri: vscode.Uri;
+                if (arg instanceof dts.DTSCtx) {
+                    uri = arg.files.pop()?.uri;
+                } else if (arg && !(arg instanceof vscode.Uri)) {
+                    // uri is BuildConfiguration from nordicsemiconductor.nrf-connect
+                    const ctx = dts.parser.ctx(arg.conf.devicetree.id);
+                    uri = ctx.files.pop()?.uri;
+                } else if (!arg && vscode.window.activeTextEditor?.document.languageId === 'dts') {
                     uri = vscode.window.activeTextEditor?.document.uri;
                 }
 
