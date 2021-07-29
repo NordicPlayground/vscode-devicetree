@@ -37,13 +37,16 @@ export class DTSDocumentProvider implements vscode.TextDocumentContentProvider {
         ctx.subscriptions.push(
             vscode.commands.registerCommand(DTSDocumentProvider.COMMAND, (arg?: dts.DTSCtx | vscode.Uri | BuildConfiguration, options?: vscode.TextDocumentShowOptions) => {
                 let uri: vscode.Uri;
-                if (arg instanceof dts.DTSCtx) {
+                if (arg instanceof vscode.Uri) {
+                    uri = arg;
+                } else if (arg instanceof dts.DTSCtx) {
                     uri = arg.files.pop()?.uri;
-                } else if (arg && !(arg instanceof vscode.Uri)) {
+                } else if (arg) {
                     // uri is BuildConfiguration from nordicsemiconductor.nrf-connect
-                    const ctx = dts.parser.ctx(arg.conf.devicetree.id);
+                    const build = arg as BuildConfiguration;
+                    const ctx = dts.parser.ctx(build.conf.devicetree.id);
                     uri = ctx.files.pop()?.uri;
-                } else if (!arg && vscode.window.activeTextEditor?.document.languageId === 'dts') {
+                } else if (vscode.window.activeTextEditor?.document.languageId === 'dts') {
                     uri = vscode.window.activeTextEditor?.document.uri;
                 }
 
