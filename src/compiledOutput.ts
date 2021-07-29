@@ -2,15 +2,15 @@ import * as vscode from 'vscode';
 import * as dts from './dts';
 import * as path from 'path';
 
-type CompiledEntity = { start: number, end: number, entity?: dts.Node | dts.Property };
+type CompiledEntity = { start: number; end: number; entity?: dts.Node | dts.Property };
 
 interface BuildConfiguration {
     conf: {
         devicetree: {
             id: number;
-        }
-    }
-};
+        };
+    };
+}
 
 export class DTSDocumentProvider implements vscode.TextDocumentContentProvider {
     private static readonly COMMAND = 'devicetree.showOutput';
@@ -25,7 +25,7 @@ export class DTSDocumentProvider implements vscode.TextDocumentContentProvider {
         this.changeEmitter = new vscode.EventEmitter();
         this.onDidChange = this.changeEmitter.event;
 
-        dts.parser.onChange(ctx => {
+        dts.parser.onChange((ctx) => {
             if (this.currUri && ctx.has(vscode.Uri.file(this.currUri.query))) {
                 this.changeEmitter.fire(this.currUri);
             }
@@ -33,33 +33,43 @@ export class DTSDocumentProvider implements vscode.TextDocumentContentProvider {
     }
 
     activate(ctx: vscode.ExtensionContext) {
-        ctx.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider('devicetree', this));
         ctx.subscriptions.push(
-            vscode.commands.registerCommand(DTSDocumentProvider.COMMAND, (arg?: dts.DTSCtx | vscode.Uri | BuildConfiguration, options?: vscode.TextDocumentShowOptions) => {
-                let uri: vscode.Uri;
-                if (arg instanceof vscode.Uri) {
-                    uri = arg;
-                } else if (arg instanceof dts.DTSCtx) {
-                    uri = arg.files.pop()?.uri;
-                } else if (arg) {
-                    // uri is BuildConfiguration from nordicsemiconductor.nrf-connect
-                    const build = arg as BuildConfiguration;
-                    const ctx = dts.parser.ctx(build.conf.devicetree.id);
-                    uri = ctx.files.pop()?.uri;
-                } else if (vscode.window.activeTextEditor?.document.languageId === 'dts') {
-                    uri = vscode.window.activeTextEditor?.document.uri;
-                }
+            vscode.workspace.registerTextDocumentContentProvider('devicetree', this)
+        );
+        ctx.subscriptions.push(
+            vscode.commands.registerCommand(
+                DTSDocumentProvider.COMMAND,
+                (
+                    arg?: dts.DTSCtx | vscode.Uri | BuildConfiguration,
+                    options?: vscode.TextDocumentShowOptions
+                ) => {
+                    let uri: vscode.Uri;
+                    if (arg instanceof vscode.Uri) {
+                        uri = arg;
+                    } else if (arg instanceof dts.DTSCtx) {
+                        uri = arg.files.pop()?.uri;
+                    } else if (arg) {
+                        // uri is BuildConfiguration from nordicsemiconductor.nrf-connect
+                        const build = arg as BuildConfiguration;
+                        const ctx = dts.parser.ctx(build.conf.devicetree.id);
+                        uri = ctx.files.pop()?.uri;
+                    } else if (vscode.window.activeTextEditor?.document.languageId === 'dts') {
+                        uri = vscode.window.activeTextEditor?.document.uri;
+                    }
 
-                if (uri) {
-                    const base = path.basename(uri.fsPath, path.extname(uri.fsPath));
-                    vscode.window.showTextDocument(
-                        vscode.Uri.parse(
-                            `devicetree://${path.dirname(uri.path)}/Compiled DeviceTree output (${base})?${uri.path}`
-                        ),
-                        options ?? { viewColumn: vscode.ViewColumn.Beside }
-                    );
+                    if (uri) {
+                        const base = path.basename(uri.fsPath, path.extname(uri.fsPath));
+                        vscode.window.showTextDocument(
+                            vscode.Uri.parse(
+                                `devicetree://${path.dirname(
+                                    uri.path
+                                )}/Compiled DeviceTree output (${base})?${uri.path}`
+                            ),
+                            options ?? { viewColumn: vscode.ViewColumn.Beside }
+                        );
+                    }
                 }
-            })
+            )
         );
     }
 
@@ -81,7 +91,7 @@ export class DTSDocumentProvider implements vscode.TextDocumentContentProvider {
             return;
         }
 
-        const e = this.entities.find(e => e.entity === entity);
+        const e = this.entities.find((e) => e.entity === entity);
         if (!e) {
             return;
         }
@@ -96,14 +106,17 @@ export class DTSDocumentProvider implements vscode.TextDocumentContentProvider {
         }
 
         const offset = doc.offsetAt(pos);
-        return this.entities.find(e => e.start <= offset && e.end >= offset)?.entity;
+        return this.entities.find((e) => e.start <= offset && e.end >= offset)?.entity;
     }
 
     is(doc: vscode.Uri) {
         return doc.toString() === this.currUri?.toString();
     }
 
-    provideTextDocumentContent(uri: vscode.Uri, token: vscode.CancellationToken): vscode.ProviderResult<string> {
+    provideTextDocumentContent(
+        uri: vscode.Uri,
+        token: vscode.CancellationToken
+    ): vscode.ProviderResult<string> {
         this.currUri = uri;
         const ctx = dts.parser.ctx(vscode.Uri.file(uri.query));
         if (!ctx) {
@@ -129,20 +142,23 @@ export class DTSDocumentProvider implements vscode.TextDocumentContentProvider {
             }
 
             text += `${n.fullName} {\n`;
-            n.uniqueProperties().forEach(p => {
+            n.uniqueProperties().forEach((p) => {
                 text += indent + this.INDENT;
                 if (p.boolean !== undefined) {
                     addEntity(p, p.name);
                 } else {
                     addEntity(p, p.name);
                     text += ' = ';
-                    addEntity(undefined, p.valueString((indent + this.INDENT + p.name + ' = ').length));
+                    addEntity(
+                        undefined,
+                        p.valueString((indent + this.INDENT + p.name + ' = ').length)
+                    );
                 }
 
                 text += ';\n';
             });
 
-            n.children().forEach(c => addNode(c, indent + this.INDENT));
+            n.children().forEach((c) => addNode(c, indent + this.INDENT));
 
             text += `${indent}};`;
             nodeEntity.end = text.length;

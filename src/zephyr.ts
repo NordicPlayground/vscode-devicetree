@@ -24,7 +24,12 @@ export type BoardInfo = {
     flash: number;
     supported: string[];
 };
-export type Board = { name: string; uri: vscode.Uri; arch?: string; info?: BoardInfo | { [name: string]: any } };
+export type Board = {
+    name: string;
+    uri: vscode.Uri;
+    arch?: string;
+    info?: BoardInfo | { [name: string]: any };
+};
 export let zephyrRoot: string;
 let boards: Board[];
 export let modules = new Array<vscode.Uri>();
@@ -35,7 +40,7 @@ async function getCMakePackages(): Promise<vscode.Uri[]> {
     };
 
     if (process.platform === 'win32') {
-        return new Promise(resolve => {
+        return new Promise((resolve) => {
             exec('reg query HKCU\\Software\\Kitware\\CMake\\Packages\\Zephyr', (err, out) => {
                 if (err) {
                     resolve([]);
@@ -43,20 +48,22 @@ async function getCMakePackages(): Promise<vscode.Uri[]> {
                     resolve(
                         out
                             .split('\n')
-                            .filter(line => line.includes('REG_SZ')) // <hash> REG_SZ <zephyr-path/share/zephyr-package/cmake>
-                            .map(line => packageToZephyrURI(line.trim().split(' ').pop()))
+                            .filter((line) => line.includes('REG_SZ')) // <hash> REG_SZ <zephyr-path/share/zephyr-package/cmake>
+                            .map((line) => packageToZephyrURI(line.trim().split(' ').pop()))
                     );
                 }
             });
         });
     } else {
         const packages = path.resolve(os.homedir(), '.cmake', 'packages', 'Zephyr');
-        const entries = await new Promise<string[]>(resolve => readdir(packages, (err, out) => resolve(err ? [] : out)));
+        const entries = await new Promise<string[]>((resolve) =>
+            readdir(packages, (err, out) => resolve(err ? [] : out))
+        );
         const uris = new Array<vscode.Uri>();
         await Promise.all(
             entries.map(
-                entry =>
-                    new Promise<void>(resolve => {
+                (entry) =>
+                    new Promise<void>((resolve) => {
                         readFile(path.resolve(packages, entry), 'utf-8', (err, out) => {
                             if (!err) {
                                 uris.push(packageToZephyrURI(out.trim()));
@@ -87,7 +94,7 @@ async function findZephyr() {
         return;
     }
 
-    const pack = cmakePackages.find(uri => {
+    const pack = cmakePackages.find((uri) => {
         // The zephyr folder is inside this workspace:
         if (vscode.workspace.getWorkspaceFolder(uri)) {
             return true;
@@ -95,7 +102,9 @@ async function findZephyr() {
 
         // or some folder in this workspace is in this zephyr instance:
         const topdir = path.dirname(uri.fsPath);
-        return vscode.workspace.workspaceFolders?.some(folder => !path.relative(topdir, folder.uri.fsPath).startsWith('..'));
+        return vscode.workspace.workspaceFolders?.some(
+            (folder) => !path.relative(topdir, folder.uri.fsPath).startsWith('..')
+        );
     });
     if (pack) {
         await setZephyrBase(pack);
@@ -107,29 +116,34 @@ async function findZephyr() {
 
         const buttons = { setDefault: 'Use as default', change: 'Change' };
         vscode.window
-            .showInformationMessage(`Using Zephyr installation at ${zephyrRoot}`, ...Object.values(buttons))
-            .then(async button => {
+            .showInformationMessage(
+                `Using Zephyr installation at ${zephyrRoot}`,
+                ...Object.values(buttons)
+            )
+            .then(async (button) => {
                 switch (button) {
                     case buttons.change:
-                        vscode.window.showQuickPick([...cmakePackages.map(uri => uri.fsPath), 'Browse...']).then(pick => {
-                            if (pick === 'Browse...') {
-                                vscode.window
-                                    .showOpenDialog({
-                                        openLabel: 'Set',
-                                        canSelectFiles: false,
-                                        canSelectFolders: true,
-                                    })
-                                    .then(
-                                        folder => {
-                                            config.set('zephyr', zephyrRoot);
-                                            setZephyrBase(folder[0]);
-                                        },
-                                        () => undefined
-                                    );
-                            } else {
-                                setZephyrBase(vscode.Uri.file(pick));
-                            }
-                        });
+                        vscode.window
+                            .showQuickPick([...cmakePackages.map((uri) => uri.fsPath), 'Browse...'])
+                            .then((pick) => {
+                                if (pick === 'Browse...') {
+                                    vscode.window
+                                        .showOpenDialog({
+                                            openLabel: 'Set',
+                                            canSelectFiles: false,
+                                            canSelectFolders: true,
+                                        })
+                                        .then(
+                                            (folder) => {
+                                                config.set('zephyr', zephyrRoot);
+                                                setZephyrBase(folder[0]);
+                                            },
+                                            () => undefined
+                                        );
+                                } else {
+                                    setZephyrBase(vscode.Uri.file(pick));
+                                }
+                            });
                         break;
                     case buttons.setDefault:
                         config.set('zephyr', zephyrRoot);
@@ -139,7 +153,7 @@ async function findZephyr() {
         return;
     }
 
-    vscode.window.showErrorMessage(`Couldn't find Zephyr root`, 'Configure...').then(button => {
+    vscode.window.showErrorMessage(`Couldn't find Zephyr root`, 'Configure...').then((button) => {
         if (button) {
             config.configureSetting('zephyr');
         }
@@ -149,7 +163,7 @@ async function findZephyr() {
 function resolveModules(): vscode.Uri[] {
     const dirs = config.get('modules');
     const uris = new Array<vscode.Uri>();
-    dirs.map(d =>
+    dirs.map((d) =>
         d
             .replace(/\${(.*?)}/g, (original, name: string) => {
                 if (name === 'workspaceFolder') {
@@ -158,7 +172,10 @@ function resolveModules(): vscode.Uri[] {
 
                 if (name.startsWith('workspaceFolder:')) {
                     const folder = name.split(':')[1];
-                    return vscode.workspace.workspaceFolders.find(w => w.name === folder)?.uri.fsPath ?? original;
+                    return (
+                        vscode.workspace.workspaceFolders.find((w) => w.name === folder)?.uri
+                            .fsPath ?? original
+                    );
                 }
 
                 if (name.toLowerCase().startsWith('env:')) {
@@ -173,11 +190,13 @@ function resolveModules(): vscode.Uri[] {
                 return original;
             })
             .replace(/^~/, os.homedir())
-    ).forEach(p => {
+    ).forEach((p) => {
         if (path.isAbsolute(p)) {
             uris.push(vscode.Uri.file(p));
         } else {
-            vscode.workspace.workspaceFolders?.forEach(workspace => uris.push(vscode.Uri.joinPath(workspace.uri, p)));
+            vscode.workspace.workspaceFolders?.forEach((workspace) =>
+                uris.push(vscode.Uri.joinPath(workspace.uri, p))
+            );
         }
     });
 
@@ -192,7 +211,7 @@ export async function setZephyrBase(uri: vscode.Uri) {
 }
 
 export function findBoard(board: string): Board | undefined {
-    return boards.find(b => b.name === board);
+    return boards.find((b) => b.name === board);
 }
 
 export async function isBoardFile(uri: vscode.Uri) {
@@ -200,7 +219,7 @@ export async function isBoardFile(uri: vscode.Uri) {
         return false;
     }
 
-    return boardRoots().some(root => !path.relative(root.fsPath, uri.fsPath).startsWith('..'));
+    return boardRoots().some((root) => !path.relative(root.fsPath, uri.fsPath).startsWith('..'));
 }
 
 export async function defaultBoard(): Promise<Board> {
@@ -217,7 +236,9 @@ export async function defaultBoard(): Promise<Board> {
 }
 
 function boardRoots(): vscode.Uri[] {
-    return modules.map(m => vscode.Uri.joinPath(m, 'boards')).filter(dir => existsSync(dir.fsPath));
+    return modules
+        .map((m) => vscode.Uri.joinPath(m, 'boards'))
+        .filter((dir) => existsSync(dir.fsPath));
 }
 
 export function board(uri: vscode.Uri): Board {
@@ -234,9 +255,9 @@ export function board(uri: vscode.Uri): Board {
 function resolveBoards() {
     const boards = new Array<Board>();
     const roots = boardRoots();
-    roots.forEach(root => {
+    roots.forEach((root) => {
         const matches = glob.sync('**/*_defconfig', { cwd: root.fsPath, absolute: true });
-        matches.forEach(m => {
+        matches.forEach((m) => {
             const dir = vscode.Uri.file(path.dirname(m));
             const dts = vscode.Uri.joinPath(dir, path.basename(m, '_defconfig') + '.dts');
             boards.push(board(dts));
@@ -249,10 +270,13 @@ function resolveBoards() {
 export async function selectBoard(prompt = 'Set board'): Promise<Board> {
     return vscode.window
         .showQuickPick(
-            boards.map(board => <vscode.QuickPickItem>{ label: board.name, description: board.arch, board }),
+            boards.map(
+                (board) =>
+                    <vscode.QuickPickItem>{ label: board.name, description: board.arch, board }
+            ),
             { placeHolder: prompt }
         )
-        .then(board => board['board']);
+        .then((board) => board['board']);
 }
 
 export function activate(zephyrBase?: string) {

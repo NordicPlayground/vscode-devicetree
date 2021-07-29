@@ -7,20 +7,30 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 
 export class DiagnosticsSet {
-    private sets: {[path: string]: {uri: vscode.Uri, diags: vscode.Diagnostic[], actions: vscode.CodeAction[]}} = {};
-    private last?: { uri: vscode.Uri, diag: vscode.Diagnostic };
+    private sets: {
+        [path: string]: {
+            uri: vscode.Uri;
+            diags: vscode.Diagnostic[];
+            actions: vscode.CodeAction[];
+        };
+    } = {};
+    private last?: { uri: vscode.Uri; diag: vscode.Diagnostic };
 
     get length() {
         return Object.values(this.sets).reduce((sum, s) => sum + s.diags.length, 0);
     }
 
-    pushLoc(loc: vscode.Location, message: string, severity: vscode.DiagnosticSeverity=vscode.DiagnosticSeverity.Warning) {
+    pushLoc(
+        loc: vscode.Location,
+        message: string,
+        severity: vscode.DiagnosticSeverity = vscode.DiagnosticSeverity.Warning
+    ) {
         return this.push(loc.uri, new vscode.Diagnostic(loc.range, message, severity));
     }
 
     private set(uri: vscode.Uri) {
         if (!(uri.toString() in this.sets)) {
-            this.sets[uri.toString()] = {uri: uri, diags: [], actions: []};
+            this.sets[uri.toString()] = { uri: uri, diags: [], actions: [] };
         }
 
         return this.sets[uri.toString()];
@@ -29,7 +39,7 @@ export class DiagnosticsSet {
     push(uri: vscode.Uri, ...diags: vscode.Diagnostic[]) {
         this.set(uri).diags.push(...diags);
 
-        this.last = { uri, diag: diags[diags.length - 1]};
+        this.last = { uri, diag: diags[diags.length - 1] };
 
         return diags[diags.length - 1];
     }
@@ -41,7 +51,7 @@ export class DiagnosticsSet {
             uri = this.last.uri;
             action.diagnostics = [this.last.diag];
         } else {
-            throw new Error("Pushing action without uri or existing diag");
+            throw new Error('Pushing action without uri or existing diag');
         }
 
         this.set(uri).actions.push(action);
@@ -50,9 +60,9 @@ export class DiagnosticsSet {
     }
 
     merge(other: DiagnosticsSet) {
-        Object.values(other.sets).forEach(set => {
+        Object.values(other.sets).forEach((set) => {
             this.push(set.uri, ...set.diags);
-            set.actions.forEach(action => this.pushAction(action, set.uri));
+            set.actions.forEach((action) => this.pushAction(action, set.uri));
         });
     }
 
@@ -66,7 +76,9 @@ export class DiagnosticsSet {
             range = new vscode.Range(range, range);
         }
 
-        return set.actions.filter(action => action.diagnostics?.find(diag => diag.range.intersection(range as vscode.Range)));
+        return set.actions.filter((action) =>
+            action.diagnostics?.find((diag) => diag.range.intersection(range as vscode.Range))
+        );
     }
 
     clear() {
@@ -83,7 +95,15 @@ export class DiagnosticsSet {
     }
 
     toString() {
-        return this.all.flatMap(file => file.diags.map(d => `${path.basename(file.uri.fsPath)}:${d.range.start.line + 1}: ${vscode.DiagnosticSeverity[d.severity]}: ${d.message}`)).join('\n');
+        return this.all
+            .flatMap((file) =>
+                file.diags.map(
+                    (d) =>
+                        `${path.basename(file.uri.fsPath)}:${d.range.start.line + 1}: ${
+                            vscode.DiagnosticSeverity[d.severity]
+                        }: ${d.message}`
+                )
+            )
+            .join('\n');
     }
 }
-
