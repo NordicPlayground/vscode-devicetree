@@ -151,6 +151,12 @@ export class ParserState {
         return !this.eof();
     }
 
+    skipComment() {
+        do {
+            this.skipWhitespace();
+        } while (this.match(/^\/\*[\s\S]*?\*\//) || this.match(/^\/\/.*/));
+    }
+
     skipToken() {
         const match = this.match(this.token);
         if (!match) {

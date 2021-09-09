@@ -303,8 +303,15 @@ export class BytestringValue extends PropertyValue {
         const start = state.freeze();
         const bytes = new Array<number>();
         let match: RegExpMatchArray;
-        while ((match = state.match(/^\s*([\da-fA-F]{2})/))) {
-            bytes.push(parseInt(match[1], 16));
+        while (state.skipWhitespace()) {
+            state.skipComment();
+
+            match = state.match(/^[\da-fA-F]{2}/);
+            if (!match) {
+                break;
+            }
+
+            bytes.push(parseInt(match[0], 16));
         }
 
         if (!state.match(/^\s*]/)) {
@@ -1937,16 +1944,7 @@ export class Parser {
         let requireSemicolon = false;
         let labels = new Array<string>();
         while (state.skipWhitespace()) {
-            const blockComment = state.match(/^\/\*[\s\S]*?\*\//);
-            if (blockComment) {
-                continue;
-            }
-
-            const comment = state.match(/^\/\/.*/);
-            if (comment) {
-                continue;
-            }
-
+            state.skipComment();
             if (requireSemicolon) {
                 requireSemicolon = false;
                 const semicolon = state.match(/^;/);
