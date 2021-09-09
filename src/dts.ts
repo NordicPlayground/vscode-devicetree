@@ -323,7 +323,7 @@ export class BytestringValue extends PropertyValue {
     }
 
     toString() {
-        return `[ ${this.val.map((v) => (v < 0x10 ? '0' : '') + v.toString(16)).join(' ')} ]`;
+        return `[${this.val.map((v) => (v < 0x10 ? '0' : '') + v.toString(16)).join(' ')}]`;
     }
 }
 
@@ -502,7 +502,27 @@ export class Property {
             return 'true';
         }
 
-        const values = this.value.map((v) => v.toString());
+        /* Split entries at spaces if they're too long */
+        const values = this.value.map((v) => {
+            const lines = new Array<string>();
+            let line: RegExpMatchArray;
+
+            let value = v.toString();
+            while (
+                value.length > 80 - indent &&
+                (line = value.match(new RegExp(`^.{1,${80 - indent}}\\s`)))
+            ) {
+                lines.push(line[0].trim());
+                value = value.slice(line[0].length);
+            }
+
+            if (value) {
+                lines.push(value);
+            }
+
+            return lines.join('\n' + ' '.repeat(indent + 1));
+        });
+
         if (values.length > 1 && indent + values.join(', ').length > 80) {
             return values.join(',\n' + ' '.repeat(indent));
         }
