@@ -1,13 +1,16 @@
 {
-    "name": "devicetree",
+    "name": "nrf-devicetree",
     "displayName": "DeviceTree for the Zephyr Project",
     "description": "Full DeviceTree language support for the Zephyr project",
-    "version": "2.4.0",
-    "publisher": "trond-snekvik",
+    "publisher": "nordic-semiconductor",
     "author": {
-        "email": "trond.snekvik@gmail.com",
-        "name": "Trond Einar Snekvik",
-        "url": "https://github.com/trond-snekvik"
+        "name": "Nordic Semiconductor",
+        "url": "https://www.nordicsemi.com/"
+    },
+    "version": "0.0.0",
+    "repository": {
+        "url": "https://github.com/NordicPlayground/vscode-nrf-devicetree",
+        "type": "git"
     },
     "engines": {
         "vscode": "^1.43.0"
@@ -23,10 +26,6 @@
         "onCommand:devicetree.save"
     ],
     "icon": "doc/devicetree_icon.png",
-    "repository": {
-        "url": "https://www.github.com/trond-snekvik/vscode-devicetree",
-        "type": "git"
-    },
     "main": "./dist/extension.js",
     "contributes": {
         "commands": [
