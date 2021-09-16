@@ -1,3 +1,8 @@
+/* Copyright (c) 2021 Nordic Semiconductor ASA
+ *
+ * SPDX-License-Identifier: LicenseRef-Nordic-1-Clause
+ */
+
 import * as vscode from 'vscode';
 import * as dts from './dts';
 import * as path from 'path';
