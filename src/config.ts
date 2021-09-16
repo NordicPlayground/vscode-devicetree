@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: LicenseRef-Nordic-1-Clause
  */
 
-
 import * as vscode from 'vscode';
 
 const settingsNamespace = 'devicetree';
