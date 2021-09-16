@@ -1,8 +1,8 @@
-/*
- * Copyright (c) 2020 Trond Snekvik
+/* Copyright (c) 2021 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: LicenseRef-Nordic-1-Clause
  */
+
 import * as yaml from 'js-yaml';
 import * as glob from 'glob';
 import * as vscode from 'vscode';
