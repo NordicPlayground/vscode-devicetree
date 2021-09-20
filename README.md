@@ -1,4 +1,4 @@
-# DeviceTree for the Zephyr Project
+# nRF DeviceTree
 
 DeviceTree language support for the [Zephyr project](https://zephyrproject.org/) in VS Code.
 
@@ -129,4 +129,4 @@ The extension will use data from the most recent DeviceTree context to provide c
 
 The extension can be installed from the Visual Studio Extension marketplace.
 
-It's also possible to download specific releases from the GitHub repository by picking a devicetree-X.X.X.vsix package from the GitHub releases tab. Open Visual Studio Code and run the "Install from VSIX..." command, either through the command palette (Ctrl+Shift+P) or by opening the extensions panel, and pressing the ... menu in the top corner. Locate the VSIX package, press "Install" and reload Visual Studio Code once prompted.
+It's also possible to install specific releasees using VSIX file. To do so, open Visual Studio Code and run the "Install from VSIX..." command, either through the command palette (Ctrl+Shift+P) or by opening the extensions panel, and pressing the ... menu in the top corner. Locate the VSIX package, press "Install" and reload Visual Studio Code once prompted.

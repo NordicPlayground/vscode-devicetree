@@ -1,6 +1,6 @@
 {
     "name": "nrf-devicetree",
-    "displayName": "DeviceTree for the Zephyr Project",
+    "displayName": "nRF DeviceTree",
     "description": "Full DeviceTree language support for the Zephyr project",
     "publisher": "nordic-semiconductor",
     "author": {
