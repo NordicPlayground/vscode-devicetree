@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  */
-import * as vscode from "vscode";
+import * as vscode from 'vscode';
 
 /** Tree view information item */
 export interface InfoItem extends vscode.TreeItem {
@@ -88,11 +88,7 @@ export interface DeviceTree {
      *
      * @returns A DeviceTree context object.
      */
-    addContext(
-        boardFile: vscode.Uri,
-        overlays?: vscode.Uri[],
-        name?: string
-    ): Promise<Context>;
+    addContext(boardFile: vscode.Uri, overlays?: vscode.Uri[], name?: string): Promise<Context>;
 
     /**
      * Remove a context object.
