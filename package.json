@@ -241,7 +241,7 @@
         ]
     },
     "scripts": {
-        "vscode:prepublish": "webpack --mode production",
+        "vscode:prepublish": "node ./scripts/repositoryField.js remove && webpack --mode production",
         "compile": "tsc -p ./",
         "watch": "tsc -watch -p ./",
         "test": "npm run compile && node ./node_modules/vscode/bin/test",
@@ -251,7 +251,8 @@
         "lint": "node ./scripts/lint.js",
         "lintfix": "node ./scripts/lint.js --fix",
         "copyright": "ts-node ./scripts/copyright.ts",
-        "updateBuildNumber": "node ./scripts/updateBuildNumber.js"
+        "updateBuildNumber": "node ./scripts/updateBuildNumber.js",
+        "restoreRepoField": "node ./scripts/repositoryField.js restore"
     },
     "devDependencies": {
         "@types/find": "^0.2.1",
