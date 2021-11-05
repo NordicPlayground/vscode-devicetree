@@ -8,6 +8,10 @@
         "url": "https://www.nordicsemi.com/"
     },
     "version": "0.0.0",
+    "repository": {
+        "url": "https://github.com/NordicPlayground/vscode-nrf-devicetree",
+        "type": "git"
+    },	
     "bugs": {
 		"url": "https://devzone.nordicsemi.com"
 	},
