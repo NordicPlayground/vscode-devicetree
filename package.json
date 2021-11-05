@@ -11,7 +11,10 @@
     "repository": {
         "url": "https://github.com/NordicPlayground/vscode-nrf-devicetree",
         "type": "git"
-    },
+    },	
+    "bugs": {
+		"url": "https://devzone.nordicsemi.com"
+	},
     "engines": {
         "vscode": "^1.43.0"
     },
