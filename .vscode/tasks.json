@@ -5,15 +5,21 @@
 	"tasks": [
 		{
 			"type": "npm",
-			"script": "watch",
-			"problemMatcher": "$tsc-watch",
+			"script": "dev",
+			"problemMatcher": ["$esbuild-watch"],
 			"isBackground": true,
 			"presentation": {
 				"reveal": "never"
 			},
-			"group": "build",
-			"label": "npm: watch",
-			"detail": "tsc -watch -p ./"
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"type": "typescript",
+			"label": "tsc",
+			"tsconfig": "tsconfig.json"
 		},
 		{
 			"type": "npm",
@@ -21,25 +27,6 @@
 			"problemMatcher": "$eslint-compact",
 			"isBackground": false,
 			"group": "build"
-		},
-		{
-			"type": "npm",
-			"script": "webpack",
-			"problemMatcher": [],
-			"label": "npm: webpack",
-			"detail": "webpack --mode development",
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			},
-			"presentation": {
-				"echo": true,
-				"reveal": "silent",
-				"focus": false,
-				"panel": "shared",
-				"showReuseMessage": true,
-				"clear": false
-			}
 		}
 	]
 }
