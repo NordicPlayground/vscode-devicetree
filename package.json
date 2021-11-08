@@ -241,6 +241,12 @@
                 "fileMatch": "dts/bindings/**/*.yaml",
                 "url": "./syntax/bindings-schema.yaml"
             }
+        ],
+        "snippets": [
+            {
+                "language": "dts",
+                "path": "./snippets.json"
+            }
         ]
     },
     "scripts": {

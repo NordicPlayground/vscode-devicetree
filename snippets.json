@@ -1,0 +1,7 @@
+{
+    "New GPIO": {
+        "prefix": "gpio",
+        "body": "gpio$1: gpio@${2} {\n    compatible = \"${3:nordic,nrf-gpio}\";\n    status = \"${4|okay,disabled|}\";\n};\n",
+        "description": "Adds new GPIO port section"
+    }
+}
