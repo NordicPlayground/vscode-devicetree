@@ -75,7 +75,8 @@ export function evaluateExpr(
     }
 
     try {
-        return eval(text);
+        // Use indirect eval to help esbuild: https://esbuild.github.io/content-types/#direct-eval
+        return (0, eval)(text);
     } catch (e) {
         diags.push(
             new vscode.Diagnostic(

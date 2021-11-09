@@ -135,8 +135,10 @@ export class Expression extends IntValue {
         const loc = state.location(start);
 
         try {
+            // Use indirect eval to help esbuild: https://esbuild.github.io/content-types/#direct-eval
+            //
             // JS doesn't support single-character arithmetic, so we need to convert those to numbers first:
-            const value = eval(
+            const value = (0, eval)(
                 text.replace(/'(.)'/g, (_, char: string) => char.charCodeAt(0).toString())
             );
             // If the raw value is a macro, we'll show that when printing a human readable version:
